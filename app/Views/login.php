@@ -1,7 +1,5 @@
 <?= $this->extend('layout/templ-home'); ?>
 
-<?= $this->extend('layout/templ-home'); ?>
-
 <?= $this->section('content'); ?>
 <main>
 
@@ -17,7 +15,8 @@
                 <div class="card-body p-5 text-center">
 
                     <h3 class="mb-5">Log in</h3>
-                    <form name="login" action="<?php echo base_url();?>login" method="POST">
+                    <!-- PERBAIKAN DI SINI: Menambahkan base_url('login') pada action -->
+                    <form name="login" action="<?= base_url('login') ?>" method="POST">
                     <?= csrf_field(); ?>
                         <div data-mdb-input-init class="form-outline mb-4">
                             <input type="text" id="empid" name="empid" class="form-control form-control-lg" placeholder="Employee Id"/>
@@ -29,12 +28,6 @@
                         <div>
                             <p>Untuk password, sementara masih sama dengan Emp ID</p>
                         </div>
-
-                        <!-- Checkbox -->
-                        <!-- <div class="form-check d-flex justify-content-start mb-4">
-                            <input class="form-check-input" type="checkbox" value="" id="form1Example3" />
-                            <label class="form-check-label" for="form1Example3"> Remember password </label>
-                        </div> -->
 
                         <div class="mb-3 row">
                             <?php if (session()->getFlashdata('message')) : ?>

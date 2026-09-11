@@ -9,7 +9,8 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('/', 'Auth::index', ['priority' => 1]);
 
 $routes->get('/login', 'Auth::index');
-$routes->post('/login', 'Auth::legacyLogin');
+// PERBAIKAN DI SINI: legacyLogin diubah menjadi login sesuai nama method di controller
+$routes->post('/login', 'Auth::login');
 $routes->get('/logout', 'Auth::logout');
 $routes->get('/forbidden', 'Auth::forbidden');
 

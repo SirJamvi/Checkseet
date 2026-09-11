@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'https://intranet2.ssi.asiasharp.com/cms/';
+    public string $baseURL = 'https://intra2.fti-foxconn.com/cms/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.

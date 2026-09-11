@@ -19,154 +19,92 @@ class Auth extends BaseController
         $this->AdminModel = new AdminModel();
     }
 
+    /**
+     * Menampilkan Halaman Login
+     */
     public function index()
     {
-        // ✅ CASE 1: Ada JWT dari UMS
-        $jwt = $this->request->getGet('jwt');
-        
-        if ($jwt) {
-            $userData = $this->validateJWT($jwt);
-            
-            if ($userData) {
-                // Set CI4 session langsung
-                $this->session->set([
-                    'empid'      => $userData['iduser'],
-                    'username'   => $userData['username'],
-                    'name'       => $userData['name'],
-                    'email'      => $userData['email'],
-                    'role_id'    => $userData['role_id'],
-                    'state'      => $userData['state'],
-                    'level'      => $userData['level'] ?? 0,
-                    'section'    => $userData['section'] ?? '',
-                    'department' => $userData['department'] ?? '',
-                    'sso_login'  => true,
-                ]);
-
-                if (($userData['state'] ?? '') === 'Admin' || ($userData['level'] ?? 1) == 0) {
-                    $this->session->set('isadmin', true);
-                }
-
-                return redirect()->to(base_url('home'));
-            }
-            
-            // JWT tidak valid → log dan redirect ke UMS
-            log_message('error', 'SSO: JWT invalid, redirecting to UMS');
-            return $this->redirectToUMS();
-        }
-        
-        // ✅ CASE 2: Sudah ada CI4 session
+        // Jika session sudah ada (sudah login), langsung arahkan ke home
         if ($this->session->has('empid')) {
             return redirect()->to(base_url('home'));
         }
         
-        // ✅ CASE 3: Tidak ada apapun → ke UMS
-        return $this->redirectToUMS();
+        // Siapkan data yang dibutuhkan oleh template view
+        $data = [
+            'title' => 'Login - CMS Foxconn'
+        ];
+        
+        // Menampilkan view login lokal beserta data title
+        return view('login', $data);
     }
     
     /**
-     * Validasi JWT langsung tanpa SSO library
-     * (Menghindari konflik session PHP native vs CI4)
+     * Memproses Data Form Login dari view (POST)
      */
-    private function validateJWT($jwt)
+    /**
+     * Memproses Data Form Login dari view (POST)
+     */
+    public function login()
     {
-        try {
-            $configFile = ROOTPATH . 'sso_config.php';
-            if (!file_exists($configFile)) return null;
-            require_once $configFile;
-            
-            $secret     = SSO_JWT_SECRET;
-            $systemCode = SSO_SYSTEM_CODE;
-            
-            $parts = explode('.', $jwt);
-            if (count($parts) !== 3) return null;
-            
-            [$header64, $payload64, $signature64] = $parts;
-            
-            // Verify signature
-            $expectedSig = rtrim(strtr(base64_encode(
-                hash_hmac('sha256', "$header64.$payload64", $secret, true)
-            ), '+/', '-_'), '=');
-            
-            if (!hash_equals($signature64, $expectedSig)) {
-                log_message('error', 'SSO: Signature mismatch');
-                return null;
-            }
-            
-            // Decode payload
-            $payload = json_decode(base64_decode(strtr($payload64, '-_', '+/')), true);
-            if (!$payload) return null;
-            
-            // Cek expired (toleransi 60 detik)
-            if (isset($payload['exp']) && ($payload['exp'] + 60) < time()) {
-                log_message('error', 'SSO: Token expired at ' . date('Y-m-d H:i:s', $payload['exp']));
-                return null;
-            }
-            
-            // Cek system code
-            if (isset($payload['data']['system_code']) && $payload['data']['system_code'] !== $systemCode) {
-                log_message('error', 'SSO: System code mismatch - expected ' . $systemCode . ', got ' . $payload['data']['system_code']);
-                return null;
-            }
-            
-            return $payload['data'] ?? null;
-            
-        } catch (\Exception $e) {
-            log_message('error', 'SSO JWT error: ' . $e->getMessage());
-            return null;
-        }
-    }
+        // 1. Log bahwa fungsi login mulai dipanggil
+        log_message('info', '--- PROSES LOGIN DIMULAI ---');
 
-    private function redirectToUMS()
-    {
-        $configFile = ROOTPATH . 'sso_config.php';
-        if (file_exists($configFile)) require_once $configFile;
-        
-        $umsUrl    = rtrim(SSO_UMS_URL, '/');
-        $returnUrl = urlencode(SSO_SYSTEM_URL . '/index.php');
-        $sysCode   = urlencode(SSO_SYSTEM_CODE);
-        
-        return redirect()->to("$umsUrl/login?return_url=$returnUrl&system=$sysCode");
-    }
-    
-    public function legacyLogin()
-    {
         if ($this->session->has('empid')) {
-            return redirect()->to('/home');
+            log_message('info', 'User sudah memiliki session, dialihkan ke Home.');
+            return redirect()->to(base_url('home'));
         }
         
         $empid    = $this->request->getVar('empid');
         $password = $this->request->getVar('password');
         
+        // 2. Log ID siapa yang mencoba login (Password TIDAK BOLEH di-log demi keamanan)
+        log_message('info', 'Mencoba login dengan Emp ID: ' . $empid);
+        
         if (!$empid || !$password) {
+            log_message('error', 'Login Ditolak: Emp ID atau Password kosong.');
             return redirect()->to(base_url('login'))
-                ->with('message', 'Employee ID and Password required');
+                ->with('message', 'Employee ID and Password are required');
         }
         
+        // 3. Log pengecekan ke database
+        log_message('info', 'Mencocokkan ke database melalui EmpModel...');
         $result = $this->EmpModel->login($empid, $password);
         
         if ($result) {
+            log_message('info', 'Pencocokan BERHASIL. Data ditemukan di EmpModel.');
+            
             $isAdmin = $this->AdminModel->getById($empid);
-            if ($isAdmin) $result['isadmin'] = $isAdmin;
+            if ($isAdmin) {
+                $result['isadmin'] = $isAdmin;
+                log_message('info', 'Status User: ADMIN.');
+            } else {
+                log_message('info', 'Status User: BUKAN ADMIN.');
+            }
+            
             $this->session->set($result);
-            return redirect()->to('/home');
+            
+            // 4. Log sukses
+            log_message('info', 'Session berhasil dibuat. --- LOGIN SUKSES ---');
+            
+            // INI ADALAH BAGIAN YANG MENGARAHKAN KE PAGE SELANJUTNYA SETELAH LOGIN
+            return redirect()->to(base_url('home'));
         }
         
+        // 5. Log gagal karena data tidak cocok
+        log_message('error', 'Pencocokan GAGAL. ID atau password salah di database lokal.');
         return redirect()->to(base_url('login'))
-            ->with('message', 'Invalid credentials');
+            ->with('message', 'Invalid credentials, please check your Employee ID and Password.');
     }
     
+    /**
+     * Proses Logout
+     */
     public function logout()
     {
+        // Hancurkan session lokal
         $this->session->destroy();
         
-        $configFile = ROOTPATH . 'sso_config.php';
-        if (file_exists($configFile)) require_once $configFile;
-        
-        $umsUrl     = rtrim(SSO_UMS_URL, '/');
-        $returnTo   = urlencode(SSO_SYSTEM_URL);
-        $systemName = urlencode(ucfirst(SSO_SYSTEM_CODE));
-        $sysCode    = urlencode(SSO_SYSTEM_CODE);
-        
-        return redirect()->to("$umsUrl/logout-options?return_to=$returnTo&system_name=$systemName&system_code=$sysCode");
+        // Arahkan kembali ke halaman login lokal (tidak lagi dilempar ke SSO UMS)
+        return redirect()->to(base_url('login'));
     }
 }

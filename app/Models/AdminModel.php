@@ -21,9 +21,9 @@ class AdminModel extends Model {
 
     public function getById($empid)
     {
-        $query = "SELECT * FROM `admin` WHERE empid=$empid" ;
-    
-        $data = $this->query($query)->getResultArray();
+        // Menggunakan fungsi bawaan CodeIgniter 4
+        $data = $this->where('empid', $empid)->first();
+        
         if($data){
             return true;
         }

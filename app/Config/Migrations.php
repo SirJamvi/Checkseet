@@ -2,6 +2,9 @@
 
 namespace Config;
 
+// gendutttttz
+// javier ganteng
+
 use CodeIgniter\Config\BaseConfig;
 
 class Migrations extends BaseConfig
