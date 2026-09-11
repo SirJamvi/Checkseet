@@ -1,0 +1,1 @@
+<img src="assets/img/sl56/sl56-f-fldb2.png" alt="" srcset="" class="w-100">

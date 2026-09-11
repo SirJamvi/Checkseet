@@ -1,0 +1,22 @@
+bottomparticipants
+title Input Production
+
+actor Operator
+boundary InputPage
+control ProductionController
+entity ProductionModel
+
+
+Operator->InputPage:index()
+activate InputPage
+InputPage->ProductionController:createProduction(request)
+activate ProductionController
+ProductionController->ProductionModel:addProses(data)
+activate ProductionModel
+
+ProductionController<<--ProductionModel:Query Response
+deactivate ProductionModel
+InputPage<<--ProductionController:index()
+deactivate ProductionController
+Operator<<--InputPage:view Homepage
+deactivate InputPage

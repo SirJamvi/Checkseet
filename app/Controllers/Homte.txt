@@ -1,0 +1,894 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Controllers\BaseController;
+use App\Models\InputModel;
+use App\Models\ProductionModel;
+use App\Models\EmpModel;
+use CodeIgniter\CodeIgniter;
+
+class Home extends BaseController
+{
+    protected $InputModel;
+    public function __construct()
+    {
+        date_default_timezone_set('Asia/Jakarta');
+        $this->InputModel = new InputModel();
+        $this->ProductionModel = new ProductionModel();
+        $this->EmpModel = new EmpModel();
+    }
+
+    public function index(): string
+    {
+        $data = [
+            'title' => 'Input | Startup Management',
+            'validation' => \Config\Services::validation()
+        ];
+        return view('index', $data);
+
+        // if (isset($_POST['submit']))
+        // {
+        //     return redirect()->to('/input');
+        // }
+    }
+
+    public function form($id):string
+    {
+        $data = [
+            'title' => 'Input | Startup Management',
+            'validation' => \Config\Services::validation()
+        ];
+        return view("/layout/form/".$id,$data);
+    }
+
+    public function ajaxAutofill()
+    {
+        if ($this->request->isAJAX())
+        {
+            // $request = service('request');
+            // $postData = $request->getPost();
+
+            // $data = array();
+
+            // // Read new token and assign in $data['token']
+            // $data['token'] = csrf_hash();
+
+            // $empid = $this->request->getPost('empid-txt');
+            $empid = $_GET['empid-txt'];
+            // $empid = '002870';
+            $q = $this->EmpModel->getEmp($empid);
+
+            // if(!empty($q))
+            // {
+                $data = [
+                    'empid' =>  $q->empid,
+                    'groupid' =>  $q->groupid,
+                    'acc' =>  $q->acc,
+                ];
+            // }
+            
+            echo json_encode($data);
+        }
+    }
+
+    public function data()
+    {
+        $data = [
+            'title' => 'History | Startup Management',
+            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['process'],$_GET['model'],$_GET['lotno'],$_GET['machno'])
+        ];
+
+        return view("/layout/history/".$_GET['process'],$data);
+    }
+    
+    public function history(): string
+    {
+        $data = [
+            'title' => 'History | Startup Management',
+            'csheet' => $this->InputModel->getCsheet()
+        ];
+        return view('history', $data);
+
+        // if(isset($_GET['filter']) && ! empty($_GET['filter']))
+        // {
+    }
+
+    public function input()
+    {
+        $data = [
+            'title' => 'Input | Startup Management',
+            'validation' => \Config\Services::validation()
+        ];
+        // if (!$this->validate([
+        //     'device-txt' => 'required',
+        //     'model-txt' => 'required',
+        //     'process-txt' => 'required',
+        //     'lotno-txt' => 'required',
+        //     'machno-txt' => 'required',
+        //     'empid-txt' => 'required',
+        //     'group-txt' => 'required',
+        //     'shift-txt' => 'required',
+        //     // 'inp1' => 'required','inp2' => 'required','inp3' => 'required','inp4' => 'required','inp5' => 'required','inp6' => 'required','inp7' => 'required','inp8' => 'required','inp9' => 'required','inp10' => 'required',
+        //     // 'inp11' => 'required','inp12' => 'required','inp13' => 'required','inp14' => 'required','inp15' => 'required','inp16' => 'required','inp17' => 'required','inp18' => 'required','inp19' => 'required',
+        // ]))
+        // {
+        //     $validation = \Config\Services::validation();
+        //     return view('index', $data)->withInput()->with('validation', $validation);
+        // }
+        $result="";
+        $process=$this->request->getVar('process-txt');
+        switch ($process) {
+            case 'slcs0':
+                $result = $this->InputModel->insert
+                (
+                    [                
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => $this->request->getVar('inp1'),'par002' => $this->request->getVar('inp2'),'par003' => $this->request->getVar('inp3'),'par004' => $this->request->getVar('inp4'),'par005' => $this->request->getVar('inp5'),
+                        'par006' => $this->request->getVar('inp6'),'par007' => $this->request->getVar('inp7'),'par008' => $this->request->getVar('inp8'),'par009' => $this->request->getVar('inp9'),'par010' => $this->request->getVar('inp10'),
+                        'par011' => $this->request->getVar('inp11'),'par012' => $this->request->getVar('inp12'),'par013' => $this->request->getVar('inp13'),'par014' => $this->request->getVar('inp14'),'par015' => $this->request->getVar('inp15'),
+                        'par016' => $this->request->getVar('inp16'),'par017' => $this->request->getVar('inp17'),'par018' => $this->request->getVar('inp18'),'par019' => $this->request->getVar('inp19')
+                    ]
+                );
+                break;
+
+            case 'sldbm':
+                $id = $this->ProductionModel->getLatestId();
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par002' => $par001,
+                        'par003' => $this->request->getVar('par003'),'par004' => $this->request->getVar('par004'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par035' => $this->request->getVar('par035'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),'par042' => $this->request->getVar('par042'),
+                    ]
+                );
+                break;
+
+            case 'slcsm':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par002' => $this->request->getVar('par002'),
+                        'par003' => $this->request->getVar('par003'),'par004' => $this->request->getVar('par004'),'par005' => $this->request->getVar('par005'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),'par042' => $this->request->getVar('par042'),'par043' => $this->request->getVar('par043'),
+                    ]
+                );
+                break;
+
+            case 'sldb1':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Sample 1",'par002' => $this->request->getVar('par002'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par035' => $this->request->getVar('par035'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Sample 2",'par002' => $this->request->getVar('par002'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par035' => $this->request->getVar('par035'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),
+                    ]
+                );
+                break;
+
+            case 'sldb2':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021'),'par022' => $this->request->getVar('par022'),'par023' => $this->request->getVar('par023'),'par024' => $this->request->getVar('par024'),
+                        'par035' => $this->request->getVar('par035'),'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),'par042' => $this->request->getVar('par042'),'par043' => $this->request->getVar('par043'),
+                    ]
+                );
+                break;
+
+            case 'slildsm':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Atas",
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017a'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par027' => $this->request->getVar('par027a'),'par028' => $this->request->getVar('par028a'),'par029' => $this->request->getVar('par029a'),
+                        'par035' => $this->request->getVar('par035'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Bawah",
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017b'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par027' => $this->request->getVar('par027b'),'par028' => $this->request->getVar('par028b'),'par029' => $this->request->getVar('par029b'),
+                        'par035' => $this->request->getVar('par035'),
+                    ]
+                );
+                break;
+                        case 'slildsm':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Atas",
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017a'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par027' => $this->request->getVar('par027a'),'par028' => $this->request->getVar('par028a'),'par029' => $this->request->getVar('par029a'),
+                        'par035' => $this->request->getVar('par035'),
+                    ]
+                );
+            case 'slld2':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Atas",
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017a'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par027' => $this->request->getVar('par027a'),'par028' => $this->request->getVar('par028a'),'par029' => $this->request->getVar('par029a'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Bawah",
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017b'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par027' => $this->request->getVar('par027b'),'par028' => $this->request->getVar('par028b'),'par029' => $this->request->getVar('par029a'),
+                    ]
+                );
+                break;
+            case 'slht':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Atas",'par002' => $this->request->getVar('par002'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017a'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par027' => $this->request->getVar('par027a'),'par028' => $this->request->getVar('par028a'),'par029' => $this->request->getVar('par029a'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Bawah",'par002' => $this->request->getVar('par002'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017b'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par027' => $this->request->getVar('par027b'),'par028' => $this->request->getVar('par028b'),'par029' => $this->request->getVar('par029a'),
+                    ]
+                );
+                break;
+            case 'slft':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Baris 1",'par002' => $this->request->getVar('par002'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017a'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par027' => $this->request->getVar('par027a'),'par028' => $this->request->getVar('par028a'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Baris 2",'par002' => $this->request->getVar('par002'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017b'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par027' => $this->request->getVar('par027b'),'par028' => $this->request->getVar('par028b'),
+                    ]
+                );
+                $result2 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Baris 3",'par002' => $this->request->getVar('par002'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017c'),'par018' => $this->request->getVar('par018c'),'par019' => $this->request->getVar('par019c'),'par020' => $this->request->getVar('par020c'),
+                        'par021' => $this->request->getVar('par021c'),'par022' => $this->request->getVar('par022c'),'par023' => $this->request->getVar('par023c'),'par024' => $this->request->getVar('par024c'),'par025' => $this->request->getVar('par025c'),
+                        'par026' => $this->request->getVar('par026c'),'par027' => $this->request->getVar('par027c'),'par028' => $this->request->getVar('par028c'),
+                    ]
+                );
+                break;
+    
+            case 'sldb1':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Sample 1",'par002' => $this->request->getVar('par002'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par035' => $this->request->getVar('par035'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Sample 2",'par002' => $this->request->getVar('par002'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par035' => $this->request->getVar('par035'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),'par038' => $this->request->getVar('par038'),'par039' => $this->request->getVar('par039'),'par040' => $this->request->getVar('par040'),
+                        'par041' => $this->request->getVar('par041'),
+                    ]
+                );
+                break;
+            case 'slbi':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Atas",'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),'par004' => $this->request->getVar('par004'),'par005' => $this->request->getVar('par005'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),'par010' => $this->request->getVar('par010'),
+                        'par011' => $this->request->getVar('par011'),'par012' => $this->request->getVar('par012'),'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par035' => $this->request->getVar('par035'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Bawah",'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),'par004' => $this->request->getVar('par004'),'par005' => $this->request->getVar('par005'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),'par010' => $this->request->getVar('par010'),
+                        'par012' => $this->request->getVar('par012'),'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par035' => $this->request->getVar('par035'),
+                    ]
+                );
+                break;
+
+            case 'slpldsm':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Front 1",'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017a'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),
+                        'par035' => $this->request->getVar('par035a'),
+                        'par036' => $this->request->getVar('par036a'),'par037' => $this->request->getVar('par037a'),'par038' => $this->request->getVar('par038a'),'par039' => $this->request->getVar('par039a'),'par040' => $this->request->getVar('par040a'),
+                        'par041' => $this->request->getVar('par041a'),'par042' => $this->request->getVar('par042a'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Front 2",'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017b'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),
+                        'par035' => $this->request->getVar('par035b'),
+                        'par036' => $this->request->getVar('par036b'),'par037' => $this->request->getVar('par037b'),'par038' => $this->request->getVar('par038b'),'par039' => $this->request->getVar('par039b'),'par040' => $this->request->getVar('par040b'),
+                        'par041' => $this->request->getVar('par041b'),'par042' => $this->request->getVar('par042b'),
+                    ]
+                );
+                $result2 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Back 1",'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017c'),'par018' => $this->request->getVar('par018c'),'par019' => $this->request->getVar('par019c'),'par020' => $this->request->getVar('par020c'),
+                        'par021' => $this->request->getVar('par021c'),'par022' => $this->request->getVar('par022c'),'par023' => $this->request->getVar('par023c'),'par024' => $this->request->getVar('par024c'),'par025' => $this->request->getVar('par025c'),
+                        'par026' => $this->request->getVar('par026c'),
+                        'par035' => $this->request->getVar('par035c'),
+                        'par036' => $this->request->getVar('par036c'),'par037' => $this->request->getVar('par037c'),'par038' => $this->request->getVar('par038c'),'par039' => $this->request->getVar('par039c'),'par040' => $this->request->getVar('par040c'),
+                        'par041' => $this->request->getVar('par041c'),'par042' => $this->request->getVar('par042c'),
+                    ]
+                );
+                $result3 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => "Back 2",'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017d'),'par018' => $this->request->getVar('par018d'),'par019' => $this->request->getVar('par019d'),'par020' => $this->request->getVar('par020d'),
+                        'par021' => $this->request->getVar('par021d'),'par022' => $this->request->getVar('par022d'),'par023' => $this->request->getVar('par023d'),'par024' => $this->request->getVar('par024d'),'par025' => $this->request->getVar('par025d'),
+                        'par026' => $this->request->getVar('par026d'),
+                        'par035' => $this->request->getVar('par035d'),
+                        'par036' => $this->request->getVar('par036d'),'par037' => $this->request->getVar('par037d'),'par038' => $this->request->getVar('par038d'),'par039' => $this->request->getVar('par039d'),'par040' => $this->request->getVar('par040d'),
+                        'par041' => $this->request->getVar('par041d'),'par042' => $this->request->getVar('par042d'),
+                    ]
+                );
+                break;
+
+            case 'slvi':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018a'),'par019' => $this->request->getVar('par019a'),'par020' => $this->request->getVar('par020a'),
+                        'par021' => $this->request->getVar('par021a'),'par022' => $this->request->getVar('par022a'),'par023' => $this->request->getVar('par023a'),'par024' => $this->request->getVar('par024a'),'par025' => $this->request->getVar('par025a'),
+                        'par026' => $this->request->getVar('par026a'),'par027' => $this->request->getVar('par027a'),
+                    ]
+                );
+                $result1 = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),'par018' => $this->request->getVar('par018b'),'par019' => $this->request->getVar('par019b'),'par020' => $this->request->getVar('par020b'),
+                        'par021' => $this->request->getVar('par021b'),'par022' => $this->request->getVar('par022b'),'par023' => $this->request->getVar('par023b'),'par024' => $this->request->getVar('par024b'),'par025' => $this->request->getVar('par025b'),
+                        'par026' => $this->request->getVar('par026b'),'par027' => $this->request->getVar('par027b'),
+                    ]
+                );
+                break;
+
+            case 'slpag':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),'par010' => $this->request->getVar('par010'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                        'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),
+                    ]
+                );
+                break;
+
+            case 'slcs':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par002' => $this->request->getVar('par002'),'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),
+                        'par015' => $this->request->getVar('par015'),'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),
+                        'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021'),'par022' => $this->request->getVar('par022'),'par023' => $this->request->getVar('par023'),
+                        'par024' => $this->request->getVar('par024'),'par025' => $this->request->getVar('par025'),'par035' => $this->request->getVar('par035'),
+                        'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),
+                    ]
+                );
+                break;
+
+            case 'slfcs':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par002' => $this->request->getVar('par002'),'par003' => $this->request->getVar('par003'),'par004' => $this->request->getVar('par004'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),
+                        'par015' => $this->request->getVar('par015'),'par016' => $this->request->getVar('par016'),'par017' => $this->request->getVar('par017'),
+                        'par018' => $this->request->getVar('par018'),'par019' => $this->request->getVar('par019'),'par020' => $this->request->getVar('par020'),
+                        'par021' => $this->request->getVar('par021'),'par022' => $this->request->getVar('par022'),'par023' => $this->request->getVar('par023'),
+                        'par024' => $this->request->getVar('par024'),'par025' => $this->request->getVar('par025'),
+                        'par026' => $this->request->getVar('par026'),'par027' => $this->request->getVar('par027'),'par028' => $this->request->getVar('par028'),
+                        'par035' => $this->request->getVar('par035'),'par036' => $this->request->getVar('par036'),'par037' => $this->request->getVar('par037'),
+                        'par038' => $this->request->getVar('par038'),
+                    ]
+                );
+                break;
+
+            case 'sllts':
+                $id = $this->ProductionModel->getLatestId();
+
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => intval($id)+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par002' => $this->request->getVar('par002'),
+                        'par008' => $this->request->getVar('par008'),'par009' => $this->request->getVar('par009'),'par010' => $this->request->getVar('par010'),
+                        'par013' => $this->request->getVar('par013'),'par014' => $this->request->getVar('par014'),'par015' => $this->request->getVar('par015'),
+                    ]
+                );
+                break;
+            
+            default:
+                $id = $this->ProductionModel->getLatestId();
+                $par001=$this->request->getVar('par001') ? $this->request->getVar('par001') : null;
+                $par002=$this->request->getVar('par002') ? $this->request->getVar('par002') : null;
+                $par003=$this->request->getVar('par003') ? $this->request->getVar('par003') : null;
+                $par004=$this->request->getVar('par004') ? $this->request->getVar('par004') : null;
+                $par005=$this->request->getVar('par005') ? $this->request->getVar('par005') : null;
+                $par006=$this->request->getVar('par006') ? $this->request->getVar('par006') : null;
+                $par007=$this->request->getVar('par007') ? $this->request->getVar('par007') : null;
+                $par008=$this->request->getVar('par008') ? $this->request->getVar('par008') : null;
+                $par009=$this->request->getVar('par009') ? $this->request->getVar('par009') : null;
+                $par010=$this->request->getVar('par010') ? $this->request->getVar('par010') : null;
+
+                $par011=$this->request->getVar('par011') ? $this->request->getVar('par011') : null;
+                $par012=$this->request->getVar('par012') ? $this->request->getVar('par012') : null;
+                $par013=$this->request->getVar('par013') ? $this->request->getVar('par013') : null;
+                $par014=$this->request->getVar('par014') ? $this->request->getVar('par014') : null;
+                $par015=$this->request->getVar('par015') ? $this->request->getVar('par015') : null;
+                $par016=$this->request->getVar('par016') ? $this->request->getVar('par016') : null;
+                $par017=$this->request->getVar('par017') ? $this->request->getVar('par017') : null;
+                $par018=$this->request->getVar('par018') ? $this->request->getVar('par018') : null;
+                $par019=$this->request->getVar('par019') ? $this->request->getVar('par019') : null;
+                $par020=$this->request->getVar('par020') ? $this->request->getVar('par020') : null;
+
+                $par021=$this->request->getVar('par021') ? $this->request->getVar('par021') : null;
+                $par022=$this->request->getVar('par022') ? $this->request->getVar('par022') : null;
+                $par023=$this->request->getVar('par023') ? $this->request->getVar('par023') : null;
+                $par024=$this->request->getVar('par024') ? $this->request->getVar('par024') : null;
+                $par025=$this->request->getVar('par025') ? $this->request->getVar('par025') : null;
+                $par026=$this->request->getVar('par026') ? $this->request->getVar('par026') : null;
+                $par027=$this->request->getVar('par027') ? $this->request->getVar('par027') : null;
+                $par028=$this->request->getVar('par028') ? $this->request->getVar('par028') : null;
+                $par029=$this->request->getVar('par029') ? $this->request->getVar('par029') : null;
+                $par030=$this->request->getVar('par030') ? $this->request->getVar('par030') : null;
+
+                $par031=$this->request->getVar('par031') ? $this->request->getVar('par031') : null;
+                $par032=$this->request->getVar('par032') ? $this->request->getVar('par032') : null;
+                $par033=$this->request->getVar('par033') ? $this->request->getVar('par033') : null;
+                $par034=$this->request->getVar('par034') ? $this->request->getVar('par034') : null;
+                $par035=$this->request->getVar('par035') ? $this->request->getVar('par035') : null;
+                $par036=$this->request->getVar('par036') ? $this->request->getVar('par036') : null;
+                $par037=$this->request->getVar('par037') ? $this->request->getVar('par037') : null;
+                $par038=$this->request->getVar('par038') ? $this->request->getVar('par038') : null;
+                $par039=$this->request->getVar('par039') ? $this->request->getVar('par039') : null;
+                $par040=$this->request->getVar('par040') ? $this->request->getVar('par040') : null;
+
+                $par041=$this->request->getVar('par041') ? $this->request->getVar('par041') : null;
+                $par042=$this->request->getVar('par042') ? $this->request->getVar('par042') : null;
+                $par043=$this->request->getVar('par043') ? $this->request->getVar('par043') : null;
+                $result = $this->ProductionModel->insert
+                (
+                    [
+                        'number' => $id+1,
+                        'device' => $this->request->getVar('device-txt'),
+                        'model' => $this->request->getVar('model-txt'),
+                        'process' => $this->request->getVar('process-txt'),
+                        'lotno' => $this->request->getVar('lotno-txt'),
+                        'machno' => $this->request->getVar('machno-txt'),
+                        'empid' => $this->request->getVar('empid-txt'),
+                        'group' => $this->request->getVar('group-txt'),
+                        'shift' => $this->request->getVar('shift-txt'),
+                        'par001' => $par001,'par002' => $par002,'par003' => $par003,'par004' => $par004,'par005' => $par005,
+                        'par006' => $par006,'par007' => $par007,'par008' => $par008,'par009' => $par009,'par010' => $par010,
+                        'par012' => $par012,'par013' => $par013,'par014' => $par014,'par015' => $par015,
+                        'par016' => $par016,'par017' => $par017,'par018' => $par018,'par019' => $par019,'par020' => $par020,
+                        'par021' => $par021,'par022' => $par022,'par023' => $par023,'par024' => $par024,'par025' => $par025,
+                        'par026' => $par026,'par027' => $par027,'par028' => $par028,'par029' => $par029,'par030' => $par030,
+                        'par031' => $par031,'par032' => $par032,'par033' => $par033,'par034' => $par034,'par035' => $par035,
+                        'par036' => $par036,'par037' => $par037,'par038' => $par038,'par039' => $par039,'par040' => $par040,
+                        'par041' => $par041,'par042' => $par042,'par043' => $par043
+                    ]
+                );
+                break;
+        }
+        if ($result)
+        {
+            session()->setFlashdata('message', 'Input success!');
+        }
+        else
+        {
+            session()->setFlashdata('message', 'Input Failed!'); 
+        }
+        return redirect()->to('');
+    }
+}

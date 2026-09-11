@@ -1,0 +1,22 @@
+bottomparticipants
+title Login Sequence Diagram
+
+actor User
+boundary LoginPage
+control AuthController
+entity EmpModel
+
+
+User->LoginPage:index()
+activate LoginPage
+LoginPage->AuthController:login(request)
+activate AuthController
+AuthController->EmpModel:login(empid,password)
+activate EmpModel
+
+AuthController<<--EmpModel:Login Response
+deactivate EmpModel
+LoginPage<<--AuthController:index()
+deactivate AuthController
+User<<--LoginPage:view Homepage
+deactivate LoginPage

@@ -1,0 +1,83 @@
+/*!
+ * Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
+ * Copyright 2024 Fonticons, Inc.
+ */
+@font-face{
+    font-family: 'Roboto';
+    src: url("../webfonts/Roboto-Regular.ttf");
+}
+body {
+    font-family: sans-serif;
+}
+
+ul.navbar-nav {
+    margin-top: 5px;
+    text-align: center;
+
+}
+  
+ul.navbar-nav a {
+    transition: 0.5s ease;
+    color: gray;
+    font-size: 20px;
+    text-decoration: none;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    padding: 20px 0;
+    margin: 0 5px;
+    font-size: 17px;
+}
+
+ul.navbar-nav a:hover {
+    border-bottom: 4px solid rgb(0, 0, 0);
+    padding: 6px 0; 
+}
+
+table {
+    table-layout:fixed;
+    width: inherit !important;
+}
+
+.table-striped-columns {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+td, th {
+    vertical-align: middle;
+    text-align: center;
+}
+
+th.input-form {
+    width:150px !important;
+    height:40px !important;
+    max-width:400px !important;
+    max-height:40px !important;
+    min-width:150px !important;
+    min-height:40px !important;
+}
+td.input-form {
+    width:150px !important;
+    height:40px !important;
+    max-width:400px !important;
+    max-height:40px !important;
+    min-width:150px !important;
+    min-height:40px !important;
+}
+
+.in_put {
+    width:50px;
+}
+
+label {
+    position: relative;
+}
+
+label span {
+    position:absolute;
+    /* right:0;
+    top:0; */
+    padding-left:5px;
+    color:black;
+}

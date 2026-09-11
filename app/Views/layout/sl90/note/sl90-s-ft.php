@@ -1,0 +1,1 @@
+<img src="assets/img/sl90/sl90-s-ft.png" alt="" srcset="" class="w-100">

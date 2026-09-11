@@ -1,0 +1,1 @@
+<img src="assets/img/fl18/fl18-p-wb.png" alt="" srcset="" class="w-100">

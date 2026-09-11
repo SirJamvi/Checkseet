@@ -1,0 +1,1156 @@
+<div class="table-responsive" id="sl33-s-csa">
+<?= csrf_field(); ?>
+<!-- <input type="hidden" name="cnt-proses" value="5"> -->
+<input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
+<table class="table table-striped-columns" 
+    >
+    <thead align="center">
+    </thead>
+    <thead align="center">
+        <tr>
+            <th class="input-form" colspan="14" scope="col">Off Center Measurement (2 sample x 12 stage x 4 side = 96 measurement)</th>
+            <th class="input-form" rowspan="10"scope="col">Alasan Inspeksi</th>
+        </tr>
+            <th class="input-form" colspan="14" scope="col">Peel Off Check (2 sample x 12 stage = 24 test)</th>
+        <tr>
+            <th class="input-form" colspan="2" scope="col">Object/Sample</th>
+            <th class="input-form" >Stg. 1</th>
+            <th class="input-form" >Stg. 2</th>
+            <th class="input-form" >Stg. 3</th>
+            <th class="input-form" >Stg. 4</th>
+            <th class="input-form" >Stg. 5</th>
+            <th class="input-form" >Stg. 6</th>
+            <th class="input-form" >Stg. 7</th>
+            <th class="input-form" >Stg. 8</th>
+            <th class="input-form" >Stg. 9</th>
+            <th class="input-form" >Stg. 10</th>
+            <th class="input-form" >Stg. 11</th>
+            <th class="input-form" >Stg. 12</th>
+           
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td rowspan="5">Sample 1</td>
+            <td >Side 1</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par019a" name="par019a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020a" name="par020a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par021a" name="par021a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par021'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par022a" name="par022a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par022'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par023a" name="par023a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par023'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par024a" name="par024a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par024'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par025a" name="par025a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par025'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par026a" name="par026a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par026'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par027a" name="par027a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par027'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par028a" name="par028a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par028'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par029a" name="par029a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par029'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par030a" name="par030a"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par030'];} ?>>
+            </td>
+            <td rowspan="5" >
+                <input type="text" step="1" class="form-control" id="par007" name="par007"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par007'];} ?>>
+            </td>
+        </tr>
+        <tr>
+            <td >Side 2</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par019b" name="par019b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par019'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020b" name="par020b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par021b" name="par021b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par021'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par022b" name="par022b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par022'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par023b" name="par023b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par023'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par024b" name="par024b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par024'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par025b" name="par025b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par025'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par026b" name="par026b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par026'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par027b" name="par027b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par027'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par028b" name="par028b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par028'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par029b" name="par029b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par029'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par030b" name="par030b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par030'];} ?>>
+            </td>
+            
+        </tr>
+        <tr>
+            <td >Side 3</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par019c" name="par019c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par019'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020c" name="par020c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par021c" name="par021c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par021'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par022c" name="par022c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par022'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par023c" name="par023c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par023'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par024c" name="par024c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par024'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par025c" name="par025c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par025'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par026c" name="par026c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par026'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par027c" name="par027c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par027'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par028c" name="par028c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par028'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par029c" name="par029c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par029'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par030c" name="par030c"  <?php if(isset($alldata)){echo 'value='.$alldata[2]['par030'];} ?>>
+            </td>
+             
+        </tr>
+        <tr>
+            <td >Side 4</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par019d" name="par019d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par019'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020d" name="par020d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par021d" name="par021d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par021'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par022d" name="par022d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par022'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par023d" name="par023d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par023'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par024d" name="par024d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par024'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par025d" name="par025d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par025'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par026d" name="par026d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par026'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par027d" name="par027d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par027'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par028d" name="par028d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par028'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par029d" name="par029d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par029'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par030d" name="par030d"  <?php if(isset($alldata)){echo 'value='.$alldata[3]['par030'];} ?>>
+            </td>
+           
+        </tr>
+        <tr>
+            <td >PEEL OFF</td>
+            <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+            <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+          
+        </tr>
+        <tr>
+            <td rowspan="5">Sample 2</td>
+            <td >Side 1</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td><td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="5" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+        </tr>
+        <tr>
+            <td >Side 2</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td><td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+    
+        </tr>
+        <tr>
+            <td >Side 3</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td><td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+      
+        </tr>
+        <tr>
+            <td >Side 4</td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td><td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+            <td rowspan="1" >
+                <input type="text" step="1" class="form-control" id="par020" name="par020"  <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+            </td>
+           
+        </tr>
+        <tr>
+            <td >PEEL OFF</td>
+            <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+            <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        <td>
+            <select id="par006" name="par006" class="form-select">
+                <?php if(isset($alldata)){
+                    if($alldata[0]["par006"]=="-"){
+                    echo '
+                        <option value="-" selected>-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else if($alldata[0]["par006"]=="PASS")
+                    {
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS" selected>PASS</option>
+                        <option value="NG">NG</option>
+                    ';
+                    }
+                    else{
+                    echo '
+                        <option value="-">-</option>
+                        <option value="PASS">PASS</option>
+                        <option value="NG" selected>NG</option>
+                    ';
+                    }
+                }
+                else{
+                    echo '<option value="-">-</option>
+                    <option value="PASS">PASS</option>
+                    <option value="NG">NG</option>';
+                } ?>
+            </select>
+        </td>        
+        </tr>
+    </tbody>
+    </table>
+</div>

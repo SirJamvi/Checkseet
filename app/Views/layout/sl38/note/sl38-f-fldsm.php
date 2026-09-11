@@ -1,0 +1,1 @@
+<img src="assets/img/sl38/sl38-f-fldsm.png" alt="" srcset="" class="w-100">

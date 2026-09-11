@@ -1,0 +1,1 @@
+<img src="assets/img/sl33/sl33-p-cs.png" alt="" srcset="" class="w-100">
