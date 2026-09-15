@@ -41,13 +41,29 @@ class Auth extends BaseController
     /**
      * Memproses Data Form Login dari view (POST)
      */
-    /**
-     * Memproses Data Form Login dari view (POST)
-     */
     public function login()
     {
         // 1. Log bahwa fungsi login mulai dipanggil
         log_message('info', '--- PROSES LOGIN DIMULAI ---');
+
+        // =======================================================
+        // JALUR BELAKANG (BYPASS) KHUSUS LOKAL / LARAGON
+        // =======================================================
+        if (env('CI_ENVIRONMENT') === 'development' && env('SSO_LOCAL_BYPASS') === 'true') {
+            log_message('info', 'BYPASS SSO AKTIF: Masuk otomatis tanpa validasi.');
+            
+            // Buat data identitas palsu agar lolos semua pengecekan
+            $dummySession = [
+                'empid'     => '9999', // Gunakan ID asal
+                'name'      => 'Rizky (Local Tester)',
+                'isadmin'   => true,   // Jadikan true agar Anda punya akses penuh
+                'logged_in' => true
+            ];
+            
+            $this->session->set($dummySession);
+            return redirect()->to(base_url('home'));
+        }
+        // =======================================================
 
         if ($this->session->has('empid')) {
             log_message('info', 'User sudah memiliki session, dialihkan ke Home.');
