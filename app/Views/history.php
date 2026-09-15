@@ -339,24 +339,31 @@
     }
 
     function download_table_as_excel() {
-      var process = document.getElementById("process").value
-      console.log("prosesss ",process)
-      var cnt_table = document.getElementById("cnt-table").value
-      console.log("cnt-table ",cnt_table)
-      if(cnt_table==1){
-        var table1 = document.getElementById("table1");
-        book = TableToExcel.tableToBook(table1,{sheet:{name:"Page 1"}})
-        TableToExcel.save(book, process+".xlsx")
-      }
-      else if(cnt_table==2){
-        console.log("masuk dua")
-        var table1 = document.getElementById("table1");
-        var table2 = document.getElementById("table2");
-        book = TableToExcel.tableToBook(table1,{sheet:{name:"Page 1"}})
-        TableToExcel.tableToSheet(book,table2,{sheet:{name:"Page 2"}});
-        TableToExcel.save(book, process+".xlsx")
-      }
-    } 
+    let resDate = convertDate();
+    let process = document.getElementById("process").value;
+    let model = $('#ModelName').val();
+    let lotNo = $('#lotNo').val();
+    let machno = $('#machno').val();
+    let device = "";
+    let typeProcess = "";
+
+    if (process != null) {
+        device = process.split("-")[0];
+        if (process.split("-")[1] == 'p') {
+            typeProcess = "production";
+        } else if (process.split("-")[1] == 'f') {
+            typeProcess = "foregoing";
+        } else {
+            typeProcess = "startup";
+        }
+    }
+
+    // Arahkan ke endpoint Controller exportExcel
+    let exportUrl = "<?= base_url('history/exportExcel') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+
+    // Buka tab baru agar browser otomatis mendownload
+    window.open(exportUrl, '_blank');
+}
 
     document.getElementById("menu-show").addEventListener("click",function(){
       console.log("menu show clicked");
