@@ -31,26 +31,26 @@ class Home extends BaseController
         return view('index', $data);
     }
 
-    public function formProduction($device,$process):string
+    public function formProduction($device, $process): string
     {
         $data = [
             'title' => 'Input | Startup Management',
             'validation' => \Config\Services::validation()
         ];
-        return view("/layout/".$device."/input/production/".$process,$data);
+        return view("/layout/" . $device . "/input/production/" . $process, $data);
     }
-    public function formStartup($device,$process):string
+    public function formStartup($device, $process): string
     {
         $data = [
             'title' => 'Input | Startup Management',
             'validation' => \Config\Services::validation()
         ];
-        return view("/layout/sl56/input/startup/".$process,$data);
+        return view("/layout/sl56/input/startup/" . $process, $data);
     }
 
     public function approve()
     {
-        if(!$this->session->has('empid')){
+        if (!$this->session->has('empid')) {
             session()->setFlashdata('message', 'Login terlebih dahulu');
             return redirect()->to('');
         }
@@ -59,46 +59,41 @@ class Home extends BaseController
             'validation' => \Config\Services::validation()
         ];
         return view('approval', $data);
-        
     }
-    public function approval():string
+    public function approval(): string
     {
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['process'],$_GET['model'],$_GET['lotno'],$_GET['machno'])
+            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'], $_GET['dateEnd'], $_GET['process'], $_GET['model'], $_GET['lotno'], $_GET['machno'])
         ];
 
-        return view("/layout/approval/".$_GET['process'],$data);
+        return view("/layout/approval/" . $_GET['process'], $data);
     }
 
     public function ajaxAutofill()
     {
-        if ($this->request->isAJAX())
-        {
-            // $request = service('request');
-            // $postData = $request->getPost();
+        if ($this->request->isAJAX()) {
+            $empid = $_GET['empid-txt'] ?? '';
 
-            // $data = array();
+            try {
+                $q = $this->EmpModel->getEmp($empid);
+            } catch (\Throwable $e) {
+                log_message('error', 'ajaxAutofill gagal konek ke database employee: ' . $e->getMessage());
+                return $this->response->setStatusCode(404)->setJSON(['message' => 'Data tidak ditemukan']);
+            }
 
-            // // Read new token and assign in $data['token']
-            // $data['token'] = csrf_hash();
+            if (empty($q)) {
+                return $this->response->setStatusCode(404)->setJSON(['message' => 'Employee ID tidak ditemukan']);
+            }
 
-            // $empid = $this->request->getPost('empid-txt');
-            $empid = $_GET['empid-txt'];
-            // $empid = '002870';
-            $q = $this->EmpModel->getEmp($empid);
+            $data = [
+                'empid'   => $q->empid,
+                'groupid' => $q->groupid,
+                'acc'     => $q->acc,
+                'name'    => $q->name
+            ];
 
-            // if(!empty($q))
-            // {
-                $data = [
-                    'empid' =>  $q->empid,
-                    'groupid' =>  $q->groupid,
-                    'acc' =>  $q->acc,
-                    'name' => $q->name
-                ];
-            // }
-            
-            echo json_encode($data);
+            return $this->response->setJSON($data);
         }
     }
 
@@ -106,13 +101,13 @@ class Home extends BaseController
     {
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['process'],$_GET['model'],$_GET['lotno'],$_GET['machno'])
+            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'], $_GET['dateEnd'], $_GET['process'], $_GET['model'], $_GET['lotno'], $_GET['machno'])
         ];
 
-        return view("/layout/".$_GET['device']."/history/production/".$_GET['process'],$data);
+        return view("/layout/" . $_GET['device'] . "/history/production/" . $_GET['process'], $data);
         // return view("/layout/history/production/".$_GET['process'],$data);
     }
-    
+
     public function history(): string
     {
         $data = [
@@ -125,9 +120,9 @@ class Home extends BaseController
     {
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->ProductionModel->getLotHistory($_GET['dateStart'],$_GET['dateEnd'],$_GET['process'],$_GET['model'],$_GET['lotno'],$_GET['machno'],$_GET['device'])
+            'alldata' => $this->ProductionModel->getLotHistory($_GET['dateStart'], $_GET['dateEnd'], $_GET['process'], $_GET['model'], $_GET['lotno'], $_GET['machno'], $_GET['device'])
         ];
-        return view('data',$data);
+        return view('data', $data);
         // return view("/layout/form/flcsa",$data);
     }
 }

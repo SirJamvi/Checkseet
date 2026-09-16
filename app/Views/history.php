@@ -3,17 +3,45 @@
 <?= $this->section('content'); ?>
 <main>
 
-<?= $this->include('layout/navbar'); ?>
+  <?= $this->include('layout/navbar'); ?>
 
-<link rel="stylesheet" href="assets/css/daterangepicker.css">
-<link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/daterangepicker.css">
+  <link rel="stylesheet" href="assets/css/global.css">
+
+  <!-- TAMBAHAN: Sihir CSS agar menu & tombol hilang saat di-Print/PDF -->
+  <style>
+    @media print {
+
+      /* Sembunyikan elemen UI (Form, Tombol, Header Card) */
+      .card-header,
+      #menu,
+      .btn,
+      nav,
+      header,
+      footer {
+        display: none !important;
+      }
+
+      /* Buang garis kotak dan bayangan (shadow) dari card agar bersih di kertas */
+      .card {
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .card-body,
+      .container-fluid {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    }
+  </style>
 
   <div class="container-fluid">
 
     <div class="card shadow mb-5">
 
       <div class="card-header py-3">
-        <h3 class="m-0 font-weight-bold">History Checksheet</h5>
+        <h3 class="m-0 font-weight-bold">History Checksheet</h3>
       </div>
 
       <div class="card-body">
@@ -23,8 +51,8 @@
             <label for="date" class="col-sm-1 col-form-label">Date Range</label>
             <div class="col-sm-3">
               <div id="daterange" class="form-control" style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
-                  <i class="fa fa-calendar"></i>&nbsp;
-                  <span></span> <i class="fa fa-caret-down"></i>
+                <i class="fa fa-calendar"></i>&nbsp;
+                <span></span> <i class="fa fa-caret-down"></i>
               </div>
             </div>
           </div>
@@ -45,7 +73,7 @@
               <select class="form-control" id="type-process" name="type-process" onchange=changeDevice() required>
                 <option class="dropdown-item" value="">choose type document</option>
                 <option value="production">Production Control Sheet</option>
-                <option value="startup">Startup  Control Sheet</option>
+                <option value="startup">Startup Control Sheet</option>
                 <option value="foregoing">Foregoing Control Sheet</option>
               </select>
             </div>
@@ -99,22 +127,27 @@
             <i class="fa-solid fa-square-caret-down"></i>
             Menu Display ON/OFF
           </button>
+
           <button class="btn btn-success" onclick="download_table_as_excel();">
             <i class="fa-solid fa-file-arrow-down"></i>
             Download Table as excel file
           </button>
-          <button class="btn btn-primary" onclick="copy_clipboard();">
+
+          <!-- TOMBOL PDF BARU (Panggil Backend Dompdf) -->
+          <button type="button" class="btn btn-danger" onclick="download_table_as_pdf();" style="margin-left: 5px;">
+            <i class="fas fa-file-pdf"></i> Download as PDF
+          </button>
+
+          <button class="btn btn-primary" onclick="copy_clipboard();" style="margin-left: 5px;">
             <i class="fa-solid fa-copy"></i>
             Copy to clipboard
           </button>
-          
+
           <!-- Table inject using Javascript -->
           <div id="table" class="table-responsive">
-            
 
           </div>
         </div>
-
 
       </div>
     </div>
@@ -124,39 +157,36 @@
   <script src="assets/js/moment.min.js"></script>
   <script src="assets/js/daterangepicker.min.js"></script>
   <script>
-    $(document).ready(function()
-    {
-      
+    $(document).ready(function() {
+
       var start = moment().subtract(29, 'days');
       var end = moment();
       changeDevice()
-      function cb(start, end)
-      {
+
+      function cb(start, end) {
         $('#daterange span').html(start.format('D MMMM YYYY') + ' - ' + end.format('D MMMM YYYY'));
         updateTable()
       }
 
-      $('#daterange').daterangepicker(
-        {
-          startDate: start,
-          endDate: end,
-          ranges:
-          {
-            'Today': [moment(), moment()],
-            'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-            'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-            'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-            'This Month': [moment().startOf('month'), moment().endOf('month')],
-            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
-          }
-        }, cb);
+      $('#daterange').daterangepicker({
+        startDate: start,
+        endDate: end,
+        ranges: {
+          'Today': [moment(), moment()],
+          'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+          'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+          'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+          'This Month': [moment().startOf('month'), moment().endOf('month')],
+          'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        }
+      }, cb);
 
       cb(start, end);
 
 
       $('#fldb1, #slcs, #submit').hide();
 
-      $('#ModelName,#lotNo,#machno, #process,#type-process').change(function(){
+      $('#ModelName,#lotNo,#machno, #process,#type-process').change(function() {
         console.log("chanbge procesafsd")
         updateTable()
         updateDocNo()
@@ -164,51 +194,57 @@
 
     });
 
-        function updateTable()
+   function updateTable()
         {
           let resDate,dateStart,dateEnd,process,model,lotNo,machno,device,typeProcess;
 
-          resDate=convertDate()
-          dateStart=resDate.dateStart
-          dateEnd=resDate.dateEnd
+          resDate = convertDate();
+          dateStart = resDate.dateStart;
+          dateEnd = resDate.dateEnd;
 
-          process=document.getElementById("process").value
-          console.log("process ",process)
-          model=$('#ModelName').val()
-          lotNo=$('#lotNo').val()
-          machno=$('#machno').val()
+          process = document.getElementById("process").value;
+          
+          // ==============================================================
+          // TAMBAHAN REM DARURAT: Mencegah Error 500 di Console
+          // Jika proses masih kosong (baru loading), batalkan penarikan data
+          // ==============================================================
+          if (!process || process === "") {
+              console.log("Menunggu pilihan proses...");
+              return; 
+          }
 
-          device=""
+          console.log("process ", process);
+          model = $('#ModelName').val();
+          lotNo = $('#lotNo').val();
+          machno = $('#machno').val();
 
-          if(process!=null){
-            console.log("ini type process ",process)
-            device=process.split("-")[0]
+          device = "";
+          if(process != null){
+            device = process.split("-")[0];
             if(process.split("-")[1] == 'p'){
-              typeProcess="production";
+              typeProcess = "production";
             }
             else if(process.split("-")[1] == 'f'){
-              typeProcess="foregoing";
+              typeProcess = "foregoing";
             }
             else{
-              typeProcess="startup";
+              typeProcess = "startup";
             }
-
           }
           
-          console.log(dateStart,dateEnd,process,model,lotNo,machno);
+          console.log(dateStart, dateEnd, process, model, lotNo, machno);
           const xhr = new XMLHttpRequest();
           xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/data?dateStart="+resDate.dateStart+" 00:00:00"+"&dateEnd="+resDate.dateEnd+" 23:59:59"+"&process="+process+"&model="+model+"&lotno="+lotNo+"&machno="+machno+"&device="+device, true);
           xhr.onload = (e) => {
             if (xhr.readyState === 4) {
               if (xhr.status === 200) {
-                console.log("ini tagnya ",document.getElementById('process').value)
-                var table = document.getElementById('table')
+                var table = document.getElementById('table');
                 $('#submit').show();
-                table.innerHTML=xhr.responseText;
+                table.innerHTML = xhr.responseText;
               } else {
-                var table = document.getElementById('table')
+                var table = document.getElementById('table');
                 $('#submit').show();
-                table.innerHTML="";
+                table.innerHTML = "";
                 console.error(xhr.statusText);
               }
             }
@@ -218,101 +254,99 @@
           };
           xhr.send(null);
         }
-        function updateDocNo()
-        {
-            var docNo = document.getElementById("docno")
-            var processValue = document.getElementById("process")
-            var text = processValue.options[processValue.selectedIndex].text;
-            docNo.value=text.split(" ")[0]
-        }
 
-        function convertDate()
-        {
-          const date = $('#daterange span').html().split(" - ");
-          var map = {
-            "January":1,
-            "February":2,
-            "March":3,
-            "April":4,
-            "May":5,
-            "June":6,
-            "July":7,
-            "August":8,
-            "September":9,
-            "October":10,
-            "November":11,
-            "December":12
+    function updateDocNo() {
+      var docNo = document.getElementById("docno")
+      var processValue = document.getElementById("process")
+      var text = processValue.options[processValue.selectedIndex].text;
+      docNo.value = text.split(" ")[0]
+    }
+
+    function convertDate() {
+      const date = $('#daterange span').html().split(" - ");
+      var map = {
+        "January": 1,
+        "February": 2,
+        "March": 3,
+        "April": 4,
+        "May": 5,
+        "June": 6,
+        "July": 7,
+        "August": 8,
+        "September": 9,
+        "October": 10,
+        "November": 11,
+        "December": 12
+      }
+      const date0 = date[0]
+      const date1 = date[1]
+
+      const splitDate0 = date0.split(" ")
+      const splitDate1 = date1.split(" ")
+
+      const dateStart = splitDate0[2] + "-" + map[splitDate0[1]] + "-" + splitDate0[0]
+      const dateEnd = splitDate1[2] + "-" + map[splitDate1[1]] + "-" + splitDate1[0]
+      return {
+        dateStart,
+        dateEnd
+      }
+    }
+
+    function changeDevice() {
+      var docType = document.getElementById('type-process').value
+      var device = document.getElementById("device").value
+
+      console.log("ini doctype device", docType, device)
+
+      $.ajax({
+        url: "<?php echo base_url(); ?>process/list?device=" + device + "&type=" + docType,
+        dataType: 'JSON',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(data) {
+          var processValue = document.getElementById("process")
+          var processValueLen = processValue.length
+          for (let i = 0; i < processValueLen; i++) {
+            processValue.remove(0);
           }
-          const date0=date[0]
-          const date1=date[1]
-
-          const splitDate0=date0.split(" ")
-          const splitDate1=date1.split(" ")
-
-          const dateStart=splitDate0[2]+"-"+map[splitDate0[1]]+"-"+splitDate0[0]
-          const dateEnd=splitDate1[2]+"-"+map[splitDate1[1]]+"-"+splitDate1[0]
-          return {dateStart,dateEnd}
-        }
-
-    function changeDevice()
-    {
-        var docType = document.getElementById('type-process').value
-        var device = document.getElementById("device").value
-        
-        console.log("ini doctype device",docType,device)
-        
-        $.ajax(
-            {
-                url: "<?php echo base_url();?>process/list?device="+device+"&type="+docType,
-                dataType:'JSON',
-                headers: {'X-Requested-With': 'XMLHttpRequest'},
-                success: function(data)
-                {
-                    var processValue = document.getElementById("process")
-                    var processValueLen = processValue.length
-                    for(let i=0;i<processValueLen;i++){
-                        processValue.remove(0);
-                    }
-                    for (let i=0;i<data.length;i++) {
-                        var option = document.createElement("option");
-                        option.text = data[i].name
-                        option.value = data[i].process_code
-                        if(processValue.length==0){
-                            processValue.add(option,processValue[0]);
-                        }
-                        else{
-                            processValue.add(option, processValue[processValue.length]);
-                        }
-                    }
-                    updateTable()
-                    updateDocNo()
-
-                },
-                error: function(data)
-                {
-                    console.log(data)
-                },
+          for (let i = 0; i < data.length; i++) {
+            var option = document.createElement("option");
+            option.text = data[i].name
+            option.value = data[i].process_code
+            if (processValue.length == 0) {
+              processValue.add(option, processValue[0]);
+            } else {
+              processValue.add(option, processValue[processValue.length]);
             }
-        );
+          }
+          updateTable()
+          updateDocNo()
+
+        },
+        error: function(data) {
+          console.log(data)
+        },
+      });
     }
 
     function copytable() {
-      var urlField = document.getElementById(document.getElementById("process").value)   
+      var urlField = document.getElementById(document.getElementById("process").value)
       console.log("amanananan")
       console.log(urlField)
       var range = document.createRange()
       range.selectNode(urlField)
-      window.getSelection().addRange(range) 
+      window.getSelection().addRange(range)
       document.execCommand('copy')
     }
 
     function copy_clipboard() {
       var table = document.getElementById(document.getElementById("process").value);
       console.log(table)
-      var range,selection
-      
-      if(document.createRange && window.getSelection) {
-        range=document.createRange()
+      var range, selection
+
+      if (document.createRange && window.getSelection) {
+        range = document.createRange()
         selection = window.getSelection()
         selection.removeAllRanges()
 
@@ -327,92 +361,113 @@
         document.execCommand('copy')
         selection.removeAllRanges()
         alert('Table copied to clipboard.')
-      }
-      else{
-        range=document.body.createTextRange()
+      } else {
+        range = document.body.createTextRange()
         range.moveToElementText(table)
         range.select()
         range.execCommand('copy')
         alert('Table copied to clipboard.')
-        
+
       }
     }
 
     function download_table_as_excel() {
-    let resDate = convertDate();
-    let process = document.getElementById("process").value;
-    let model = $('#ModelName').val();
-    let lotNo = $('#lotNo').val();
-    let machno = $('#machno').val();
-    let device = "";
-    let typeProcess = "";
+      let resDate = convertDate();
+      let process = document.getElementById("process").value;
+      let model = $('#ModelName').val();
+      let lotNo = $('#lotNo').val();
+      let machno = $('#machno').val();
+      let device = "";
+      let typeProcess = "";
 
-    if (process != null) {
+      if (process != null) {
         device = process.split("-")[0];
         if (process.split("-")[1] == 'p') {
-            typeProcess = "production";
+          typeProcess = "production";
         } else if (process.split("-")[1] == 'f') {
-            typeProcess = "foregoing";
+          typeProcess = "foregoing";
         } else {
-            typeProcess = "startup";
+          typeProcess = "startup";
         }
+      }
+
+      // Arahkan ke endpoint Controller exportExcel
+      let exportUrl = "<?= base_url('history/exportExcel') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+
+      // Buka tab baru agar browser otomatis mendownload
+      window.open(exportUrl, '_blank');
     }
 
-    // Arahkan ke endpoint Controller exportExcel
-    let exportUrl = "<?= base_url('history/exportExcel') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+    function download_table_as_pdf() {
+      let resDate = convertDate();
+      let process = document.getElementById("process").value;
+      let model = $('#ModelName').val();
+      let lotNo = $('#lotNo').val();
+      let machno = $('#machno').val();
+      let device = "";
+      let typeProcess = "";
 
-    // Buka tab baru agar browser otomatis mendownload
-    window.open(exportUrl, '_blank');
-}
-
-    document.getElementById("menu-show").addEventListener("click",function(){
-      console.log("menu show clicked");
-      if ( document.getElementById("menu").classList.contains('show') ){
-        document.getElementById("menu").classList.remove('show');
+      if (process != null) {
+        device = process.split("-")[0];
+        if (process.split("-")[1] == 'p') {
+          typeProcess = "production";
+        } else if (process.split("-")[1] == 'f') {
+          typeProcess = "foregoing";
+        } else {
+          typeProcess = "startup";
+        }
       }
-      else{
+
+      // Arahkan ke endpoint Controller exportPDF yang baru dibuat
+      let exportUrl = "<?= base_url('history/exportPDF') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+
+      // Buka di tab baru, CodeIgniter akan otomatis memunculkan pop-up download PDF
+      window.open(exportUrl, '_blank');
+    }
+
+    document.getElementById("menu-show").addEventListener("click", function() {
+      console.log("menu show clicked");
+      if (document.getElementById("menu").classList.contains('show')) {
+        document.getElementById("menu").classList.remove('show');
+      } else {
         document.getElementById("menu").classList.add('show')
       }
     })
   </script>
   <script src="assets/js/dataTables.js"></script>
   <script src="assets/js/dataTables.bootstrap4.js"></script>
-  
+
   <script>
-  $(document).ready(function()
-  {
-      $.ajax(
-          {
-              url: "<?php echo base_url();?>device/list",
-              dataType:'JSON',
-              headers: {'X-Requested-With': 'XMLHttpRequest'},
-              success: function(data)
-              {
-                  console.log(data);
-                  var deviceValue = document.getElementById("device")
-                  var deviceValueLen = deviceValue.length
-                  for(let i=0;i<deviceValueLen;i++){
-                      deviceValue.remove(0);
-                  }
-                  for (let i=0;i<data.length;i++) {
-                      var option = document.createElement("option");
-                      option.text = data[i].name
-                      option.value = data[i].code
-                      if(deviceValue.length==0){
-                          deviceValue.add(option,deviceValue[0]);
-                      }
-                      else{
-                          deviceValue.add(option, deviceValue[deviceValue.length]);
-                      }
-                  }
-              },
-              error: function(data)
-              {
-                  console.log(data)
-              },
+    $(document).ready(function() {
+      $.ajax({
+        url: "<?php echo base_url(); ?>device/list",
+        dataType: 'JSON',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(data) {
+          console.log(data);
+          var deviceValue = document.getElementById("device")
+          var deviceValueLen = deviceValue.length
+          for (let i = 0; i < deviceValueLen; i++) {
+            deviceValue.remove(0);
           }
-      );
-  });
+          for (let i = 0; i < data.length; i++) {
+            var option = document.createElement("option");
+            option.text = data[i].name
+            option.value = data[i].code
+            if (deviceValue.length == 0) {
+              deviceValue.add(option, deviceValue[0]);
+            } else {
+              deviceValue.add(option, deviceValue[deviceValue.length]);
+            }
+          }
+        },
+        error: function(data) {
+          console.log(data)
+        },
+      });
+    });
   </script>
 </main>
 <?= $this->endSection(); ?>

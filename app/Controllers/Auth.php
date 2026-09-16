@@ -42,75 +42,80 @@ class Auth extends BaseController
      * Memproses Data Form Login dari view (POST)
      */
     public function login()
-    {
-        // 1. Log bahwa fungsi login mulai dipanggil
-        log_message('info', '--- PROSES LOGIN DIMULAI ---');
+{
+    // 1. Log bahwa fungsi login mulai dipanggil
+    log_message('info', '--- PROSES LOGIN DIMULAI ---');
 
-        // =======================================================
-        // JALUR BELAKANG (BYPASS) KHUSUS LOKAL / LARAGON
-        // =======================================================
-        if (env('CI_ENVIRONMENT') === 'development' && env('SSO_LOCAL_BYPASS') === 'true') {
-            log_message('info', 'BYPASS SSO AKTIF: Masuk otomatis tanpa validasi.');
-            
-            // Buat data identitas palsu agar lolos semua pengecekan
-            $dummySession = [
-                'empid'     => '9999', // Gunakan ID asal
-                'name'      => 'Rizky (Local Tester)',
-                'isadmin'   => true,   // Jadikan true agar Anda punya akses penuh
-                'logged_in' => true
-            ];
-            
-            $this->session->set($dummySession);
-            return redirect()->to(base_url('home'));
-        }
-        // =======================================================
-
-        if ($this->session->has('empid')) {
-            log_message('info', 'User sudah memiliki session, dialihkan ke Home.');
-            return redirect()->to(base_url('home'));
-        }
-        
-        $empid    = $this->request->getVar('empid');
-        $password = $this->request->getVar('password');
-        
-        // 2. Log ID siapa yang mencoba login (Password TIDAK BOLEH di-log demi keamanan)
-        log_message('info', 'Mencoba login dengan Emp ID: ' . $empid);
-        
-        if (!$empid || !$password) {
-            log_message('error', 'Login Ditolak: Emp ID atau Password kosong.');
-            return redirect()->to(base_url('login'))
-                ->with('message', 'Employee ID and Password are required');
-        }
-        
-        // 3. Log pengecekan ke database
-        log_message('info', 'Mencocokkan ke database melalui EmpModel...');
-        $result = $this->EmpModel->login($empid, $password);
-        
-        if ($result) {
-            log_message('info', 'Pencocokan BERHASIL. Data ditemukan di EmpModel.');
-            
-            $isAdmin = $this->AdminModel->getById($empid);
-            if ($isAdmin) {
-                $result['isadmin'] = $isAdmin;
-                log_message('info', 'Status User: ADMIN.');
-            } else {
-                log_message('info', 'Status User: BUKAN ADMIN.');
-            }
-            
-            $this->session->set($result);
-            
-            // 4. Log sukses
-            log_message('info', 'Session berhasil dibuat. --- LOGIN SUKSES ---');
-            
-            // INI ADALAH BAGIAN YANG MENGARAHKAN KE PAGE SELANJUTNYA SETELAH LOGIN
-            return redirect()->to(base_url('home'));
-        }
-        
-        // 5. Log gagal karena data tidak cocok
-        log_message('error', 'Pencocokan GAGAL. ID atau password salah di database lokal.');
-        return redirect()->to(base_url('login'))
-            ->with('message', 'Invalid credentials, please check your Employee ID and Password.');
+    if ($this->session->has('empid')) {
+        log_message('info', 'User sudah memiliki session, dialihkan ke Home.');
+        return redirect()->to(base_url('home'));
     }
+
+    $empid    = $this->request->getVar('empid');
+    $password = $this->request->getVar('password');
+
+    // 2. Log ID siapa yang mencoba login (Password TIDAK BOLEH di-log demi keamanan)
+    log_message('info', 'Mencoba login dengan Emp ID: ' . $empid);
+
+    if (!$empid || !$password) {
+        log_message('error', 'Login Ditolak: Emp ID atau Password kosong.');
+        return redirect()->to(base_url('login'))
+            ->with('message', 'Employee ID and Password are required');
+    }
+
+    // =======================================================
+    // JALUR BELAKANG (BYPASS) KHUSUS LOKAL / LARAGON
+    // Tetap pakai empid yang diinput & tetap cek status admin,
+    // hanya password yang tidak divalidasi ke server SSO/SQL Server.
+    // =======================================================
+    if (ENVIRONMENT === 'development' && env('SSO_LOCAL_BYPASS')) {
+        log_message('info', 'BYPASS SSO AKTIF: Password tidak divalidasi, tapi empid & status admin tetap dicek.');
+
+        $isAdmin = $this->AdminModel->getById($empid);
+
+        $dummySession = [
+            'empid'     => $empid,
+            'name'      => $isAdmin ? 'Admin (Local Tester)' : 'User (Local Tester)',
+            'isadmin'   => $isAdmin,
+            'role'      => 'all',
+            'logged_in' => true
+        ];
+
+        $this->session->set($dummySession);
+        log_message('info', 'Session bypass dibuat untuk empid: ' . $empid . ' | isadmin: ' . ($isAdmin ? 'true' : 'false'));
+
+        return redirect()->to(base_url('home'));
+    }
+    // =======================================================
+
+    // 3. Log pengecekan ke database
+    log_message('info', 'Mencocokkan ke database melalui EmpModel...');
+    $result = $this->EmpModel->login($empid, $password);
+
+    if ($result) {
+        log_message('info', 'Pencocokan BERHASIL. Data ditemukan di EmpModel.');
+
+        $isAdmin = $this->AdminModel->getById($empid);
+        if ($isAdmin) {
+            $result['isadmin'] = $isAdmin;
+            log_message('info', 'Status User: ADMIN.');
+        } else {
+            log_message('info', 'Status User: BUKAN ADMIN.');
+        }
+
+        $this->session->set($result);
+
+        // 4. Log sukses
+        log_message('info', 'Session berhasil dibuat. --- LOGIN SUKSES ---');
+
+        return redirect()->to(base_url('home'));
+    }
+
+    // 5. Log gagal karena data tidak cocok
+    log_message('error', 'Pencocokan GAGAL. ID atau password salah di database lokal.');
+    return redirect()->to(base_url('login'))
+        ->with('message', 'Invalid credentials, please check your Employee ID and Password.');
+}
     
     /**
      * Proses Logout

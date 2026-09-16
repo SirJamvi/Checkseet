@@ -338,6 +338,10 @@ function updateDocNo()
 {
     var docNo = document.getElementById("docno")
     var processValue = document.getElementById("process-txt")
+    if(processValue.selectedIndex < 0){
+        docNo.value = "-";
+        return;
+    }
     var text = processValue.options[processValue.selectedIndex].text;
     docNo.value=text.split(" ")[0]
 }
@@ -386,8 +390,14 @@ function updateDevice()
 
 function updateSetting()
 {
+  var processVal = $('#process-txt').val();
+  if(!processVal || processVal === '-' || processVal === 'null'){
+      var modal_body = document.getElementById('catatan-modal-body');
+      modal_body.innerHTML = " ";
+      return;
+  }
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+$('#process-txt').val(), true);
+  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+processVal, true);
   xhr.onload = (e) => {
       if (xhr.readyState === 4) {
           if (xhr.status === 200) {

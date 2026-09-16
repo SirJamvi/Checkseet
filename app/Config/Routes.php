@@ -61,6 +61,9 @@ $routes->get('/approve-form', 'Approval::formApproval');
 $routes->post('/approve', 'Approval::updateApproval');
 $routes->get('/approval/([a-zA-Z0-9]+)','Home::approval/$1');
 
+//Route untuk export PDF
+$routes->get('history/exportPDF', 'History::exportPDF');
+
 $routes->get('/process/list', 'Process::listProcess');
 $routes->get('/process', 'Process::index');
 $routes->post('/process', 'Process::createProcess');
