@@ -8,47 +8,45 @@ class EmpModel extends Model {
 
     public function getEmp($empid)
     {        
-        $db = \Config\Database::connect('second');
-        $query = "SELECT tbtcardemp.empid, tbtcardemp.cardid, tbempinfa.firstname + ' ' + tbempinfa.midname + ' ' + tbempinfa.lastname as name, tb_emp_proc.process, tb_emp_proc.device, tbtschemp.groupid, RIGHT(tbarawdata.acc, 1) AS acc
-        FROM tbtcardemp
-        INNER JOIN tbempinfa ON tbtcardemp.empid = tbempinfa.empid
-        INNER JOIN tbarawdata ON tbtcardemp.empid = tbarawdata.empid
-        INNER JOIN tb_emp_proc ON tbtcardemp.empid = tb_emp_proc.empid
-        INNER JOIN tbtschemp ON tbtcardemp.empid = tbtschemp.empid
-        WHERE (tbtcardemp.empid = '$empid' OR tbtcardemp.cardid = '$empid') AND tbempinfa.empstsid <> '3,Not Active' AND tbtcardemp.datetl = '1900-01-01' AND tbtschemp.datetl = '1900-01-01' AND (tbarawdata.datet = CAST( GETDATE() AS Date )) 
-        ";
-        // return $this->db->query($query)->row_array();
-        // $query = $this->db->query($query);
+        // Cek apakah sedang mode lokal atau server kantor
+        if (getenv('CI_ENVIRONMENT') === 'development') {
+            $db = \Config\Database::connect('default');
+            $query = "SELECT username AS empid, username AS cardid, name, 'dev_process' AS process, 'dev_device' AS device, 'dev_group' AS groupid, '1' AS acc
+            FROM users WHERE username = '$empid'";
+        } else {
+            $db = \Config\Database::connect('second');
+            $query = "SELECT tbtcardemp.empid, tbtcardemp.cardid, tbempinfa.firstname + ' ' + tbempinfa.midname + ' ' + tbempinfa.lastname as name, tb_emp_proc.process, tb_emp_proc.device, tbtschemp.groupid, RIGHT(tbarawdata.acc, 1) AS acc
+            FROM tbtcardemp
+            INNER JOIN tbempinfa ON tbtcardemp.empid = tbempinfa.empid
+            INNER JOIN tbarawdata ON tbtcardemp.empid = tbarawdata.empid
+            INNER JOIN tb_emp_proc ON tbtcardemp.empid = tb_emp_proc.empid
+            INNER JOIN tbtschemp ON tbtcardemp.empid = tbtschemp.empid
+            WHERE (tbtcardemp.empid = '$empid' OR tbtcardemp.cardid = '$empid') AND tbempinfa.empstsid <> '3,Not Active' AND tbtcardemp.datetl = '1900-01-01' AND tbtschemp.datetl = '1900-01-01' AND (tbarawdata.datet = CAST( GETDATE() AS Date ))";
+        }
+        
         $query = $db->query($query);
-        // return $query->getResultArray();
         return $query->getRow();
-        // $num = $query->getNumRows();
-        // if($num > 0)
-        // {
-        //     //Mengirimkan data array hasil query
-        //     return $this->findall();
-        //     //Function result() hampir sama dengan function mysql_fetch_array()
-        // }
-        // else
-        // {
-        //     return 0;
-        //     //Kirimkan 0 jika tidak ada datanya
-        // }
-        // // return $query->row_array();
     }
 
     public function getDataEmp($empid)
     {
-        $db = \Config\Database::connect('second');
-        $q = 
-        "SELECT empid, firstname+' '+midname+' '+lastname as name, deptid, positionid, titleid, empstsid
-        FROM tbempinfa
-        WHERE empstsid <> '3,Not Active' AND empid = '$empid'";
+        if (getenv('CI_ENVIRONMENT') === 'development') {
+            $db = \Config\Database::connect('default');
+            // Menyesuaikan kolom agar tidak merusak logic lama
+            $q = "SELECT username AS empid, name, section AS deptid, level AS positionid, state AS empstsid
+            FROM users WHERE username = '$empid'";
+        } else {
+            $db = \Config\Database::connect('second');
+            $q = "SELECT empid, firstname+' '+midname+' '+lastname as name, deptid, positionid, titleid, empstsid
+            FROM tbempinfa
+            WHERE empstsid <> '3,Not Active' AND empid = '$empid'";
+        }
+
         $data = $db->query($q);
         return $data->getRow();
     }
 
-    public function login($empid,$password)
+    public function login($empid, $password)
     {
         $session = \Config\Services::session();
         $session->start();
@@ -60,6 +58,7 @@ class EmpModel extends Model {
                 'name' =>  'admin',
                 'positionid' =>  'admin',
                 'role' => 'all',
+                'state' => 'Admin', // Penambahan state untuk pengkondisian Navbar
                 'isadmin' => true
             ];
             $session->sess_expiration = '3600';
@@ -67,25 +66,31 @@ class EmpModel extends Model {
             return $data;
         }
 
-        
-
         if($password==$empid){
-            $q=$this->getDataEmp($empid);
-            $level = preg_split('/,/', $q->positionid, -1, PREG_SPLIT_NO_EMPTY)[0];
+            $q = $this->getDataEmp($empid);
+            
             if(!$q){
                 return 'User Tidak Ditemukan !!!';
             }
 
-            $role='bebas';
-            if($q->deptid=='017,FRAME LASER 1.8'){
-                $role='fl';
+            // PERTAHANKAN LOGIC LAMA DENGAN PENYESUAIAN ENVIRONMENT
+            if (getenv('CI_ENVIRONMENT') === 'development') {
+                $level = $q->positionid; // Data dummy murni angka
+            } else {
+                $level = preg_split('/,/', $q->positionid, -1, PREG_SPLIT_NO_EMPTY)[0]; // Split text dari database asli
             }
-            else if($q->deptid=='044,SINGLE LASER 5.6'){
-                $role='sl';
+
+            $role = 'bebas';
+            if($q->deptid == '017,FRAME LASER 1.8'){
+                $role = 'fl';
             }
+            else if($q->deptid == '044,SINGLE LASER 5.6'){
+                $role = 'sl';
+            }
+
             // Jika role diatas Assisten Supervisor bisa mengakses semua device
             if($level <= 7){
-                $role='all';
+                $role = 'all';
             }
 
             if($q){
@@ -95,60 +100,15 @@ class EmpModel extends Model {
                     'positionid' =>  $q->positionid,
                     'role' => $role,
                     'level' => $level,
+                    'state' => $q->empstsid, // Kirim status (Approver/Originator) ke session agar dibaca oleh Navbar
                     'isadmin' => false
                 ];
-                // $session->sess_expiration = '3600';
-                // $session->set($data); 
                 return $data;
-            }
-            else{
-                return 'User Tidak Ditemukan !!!';
             }
         }
         else{
             return 'Wrong username or password !!!';
         }
     }
-
-    // public function login($empid,$password){
-
-    // }
-
-    // public function testing()
-    // {
-    //     $db = \Config\Database::connect('second');
-    //     $query = "SELECT *
-    //     FROM tbempinfa
-    //     ";
-    //     // return $this->db->query($query)->row_array();
-    //     // $query = $this->db->query($query);
-    //     $query = $db->query($query);
-    //     // return $query->getResultArray();
-    //     return $query->getResultArray();
-    // }
-
-    // public function getEmp($cardemp)
-    // {        
-    //     $query = "SELECT tbtcardemp.*, tbempinfa.firstname, tbempinfa.midname, tbempinfa.lastname, tb_emp_proc.process, tb_emp_proc.device, tbtschemp.groupid
-    //             FROM tbtcardemp
-    //             INNER JOIN tbempinfa ON tbtcardemp.empid = tbempinfa.empid
-    //             INNER JOIN tb_emp_proc ON tbtcardemp.empid = tb_emp_proc.empid
-    //             INNER JOIN tbtschemp ON tbtcardemp.empid = tbtschemp.empid
-    //             WHERE tbtcardemp.cardid = '$cardid' AND tbempinfa.empstsid <> '3,Not Active' AND tbtcardemp.datetl = '1900-01-01' AND tb_emp_proc.date_end IS NULL AND tbtschemp.datetl = '1900-01-01'
-    //             ";
-    //     // return $this->db->query($query)->row_array();
-    //     $query = $this->db->query($query);
-    //     $num = $query->num_rows();
-    //     if($num > 0){
-    //         //Mengirimkan data array hasil query
-    //         return $query->row_array();
-    //         //Function result() hampir sama dengan function mysql_fetch_array()
-    //     }else{
-    //         return 0;
-    //         //Kirimkan 0 jika tidak ada datanya
-    //     }
-    //     // return $query->row_array();
-    // }
 }
-
 ?>

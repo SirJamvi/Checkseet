@@ -53,9 +53,10 @@ $routes->get('/log-activity', 'LogActivity::index');
 $routes->get('/input', 'Input::index'); 
 $routes->get('/input/note-form/(:any)', 'Input::formStandard/$1');
 $routes->get('/history', 'History::index');
+$routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
 
 // TAMBAHAN: Route untuk export Excel
-$routes->get('/history/exportExcel', 'History::exportExcel');
+// $routes->get('/history/exportExcel', 'History::exportExcel');
 $routes->get('/approve', 'Approval::index');
 $routes->get('/approve-form', 'Approval::formApproval');
 $routes->post('/approve', 'Approval::updateApproval');

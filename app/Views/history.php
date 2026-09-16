@@ -138,6 +138,9 @@
 
       $('#daterange').daterangepicker(
         {
+          showDropdowns: true, // FITUR BARU: Memunculkan pilihan bulan & tahun
+          minYear: 2020,       // FITUR BARU: Batas tahun paling lama
+          maxYear: parseInt(moment().format('YYYY'),10) + 1, // FITUR BARU: Batas tahun paling baru
           startDate: start,
           endDate: end,
           ranges:
@@ -166,6 +169,12 @@
 
         function updateTable()
         {
+          // Tambahkan 3 baris ini untuk mencegah request error saat form kosong
+          var checkProcess = document.getElementById("process").value;
+          if (!checkProcess || checkProcess === "") {
+              return;
+          }
+
           let resDate,dateStart,dateEnd,process,model,lotNo,machno,device,typeProcess;
 
           resDate=convertDate()
@@ -339,31 +348,51 @@
     }
 
     function download_table_as_excel() {
-    let resDate = convertDate();
-    let process = document.getElementById("process").value;
-    let model = $('#ModelName').val();
-    let lotNo = $('#lotNo').val();
-    let machno = $('#machno').val();
-    let device = "";
-    let typeProcess = "";
+      // Ambil elemen process yang sedang dipilih
+      var processElement = document.getElementById("process");
+      var processValue = processElement.value;
+      var processText = processElement.options[processElement.selectedIndex].text;
 
-    if (process != null) {
-        device = process.split("-")[0];
-        if (process.split("-")[1] == 'p') {
-            typeProcess = "production";
-        } else if (process.split("-")[1] == 'f') {
-            typeProcess = "foregoing";
-        } else {
-            typeProcess = "startup";
-        }
+      // ====================================================================
+      // 1. CEK JIKA DOKUMEN ADALAH SPESIFIK "FF-D2-001-10 (LD Die Bonding 2)"
+      // ====================================================================   
+      if (processText.includes("FF-D2-001-10") || processText.includes("LD Die Bonding 2")) {
+          let resDate = convertDate();
+          let model = $('#ModelName').val();
+          let lotNo = $('#lotNo').val();
+          let machno = $('#machno').val();
+          
+          // Ambil device code secara dinamis (persis seperti fungsi aslinya)
+          let device = "";
+          if (processValue != null) {
+              device = processValue.split("-")[0];
+          }
+
+          // Panggil server-side (PHP) KHUSUS untuk dokumen ini
+          // PERBAIKAN: Menambahkan jam 00:00:00 dan 23:59:59 agar query database cocok
+          let exportUrl = "<?= base_url('history/export/ff-d2-001') ?>?dateStart=" + resDate.dateStart + " 00:00:00&dateEnd=" + resDate.dateEnd + " 23:59:59&process=" + processValue + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+          
+          window.open(exportUrl, '_blank');
+          return; // Hentikan fungsi di sini
+      }
+
+      // ====================================================================
+      // 2. JIKA BUKAN DOKUMEN DI ATAS, GUNAKAN CARA LAMA (JAVASCRIPT)
+      // ====================================================================
+      var cnt_table = document.getElementById("cnt-table").value;
+      if(cnt_table==1){
+        var table1 = document.getElementById("table1");
+        book = TableToExcel.tableToBook(table1,{sheet:{name:"Page 1"}})
+        TableToExcel.save(book, processValue+".xlsx")
+      }
+      else if(cnt_table==2){
+        var table1 = document.getElementById("table1");
+        var table2 = document.getElementById("table2");
+        book = TableToExcel.tableToBook(table1,{sheet:{name:"Page 1"}})
+        TableToExcel.tableToSheet(book,table2,{sheet:{name:"Page 2"}});
+        TableToExcel.save(book, processValue+".xlsx")
+      }
     }
-
-    // Arahkan ke endpoint Controller exportExcel
-    let exportUrl = "<?= base_url('history/exportExcel') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
-
-    // Buka tab baru agar browser otomatis mendownload
-    window.open(exportUrl, '_blank');
-}
 
     document.getElementById("menu-show").addEventListener("click",function(){
       console.log("menu show clicked");
