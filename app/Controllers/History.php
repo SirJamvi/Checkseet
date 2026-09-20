@@ -25,9 +25,11 @@ class History extends BaseController
     protected $ForegoingModel;
     protected $EmpModel;
 
-    // Batas kolom disesuaikan agar tidak kepotong di PDF (Portrait & Landscape)
-    private const PDF_MAX_COLS_LANDSCAPE = 14;
-    private const PDF_MAX_COLS_PORTRAIT = 8;
+    // BATAS DOUBLE AUTO-FIT PDF: Maks 10 Kolom
+    private const PDF_MAX_COLS_LANDSCAPE = 10;
+    private const PDF_MAX_ROWS_LANDSCAPE = 20;
+    private const PDF_MAX_COLS_PORTRAIT = 6;
+    private const PDF_MAX_ROWS_PORTRAIT = 35;
 
     public function __construct()
     {
@@ -62,6 +64,10 @@ class History extends BaseController
         return view("/layout/" . $data['alldata'][0]['device'] . "/history/foregoing/" . $data['alldata'][0]['process'], $data);
     }
 
+    // =========================================================================
+    // SHARED HELPERS
+    // =========================================================================
+
     private function getProsesInfo(string $processCode): array
     {
         $db = \Config\Database::connect();
@@ -82,10 +88,8 @@ class History extends BaseController
         libxml_use_internal_errors(true);
         $doc->loadHTML('<?xml encoding="UTF-8">' . $html);
         libxml_clear_errors();
-
         $xpath = new \DOMXPath($doc);
         $nodes = $xpath->query("//table[@id='{$id}']");
-
         return $nodes->length > 0 ? $nodes->item(0) : null;
     }
 
@@ -107,11 +111,9 @@ class History extends BaseController
                 if ($tag !== 'td' && $tag !== 'th') {
                     continue;
                 }
-
                 while (!empty($occupied[$currentRow][$col])) {
                     $col++;
                 }
-
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
                 $isHeader = $tag === 'th';
@@ -134,13 +136,11 @@ class History extends BaseController
                         $isHeaderMap[$r][$c] = $isHeader;
                     }
                 }
-
                 $maxCol = max($maxCol, $col + $colspan - 1);
                 $col += $colspan;
             }
             $currentRow++;
         }
-
         return [
             'origins' => $origins,
             'isHeaderMap' => $isHeaderMap,
@@ -149,20 +149,59 @@ class History extends BaseController
         ];
     }
 
-    // LOGIKA BARU: Deteksi jumlah baris header berdasarkan rowspan sel identitas pertama
-    // Ini mengabaikan apakah sel HTML ditulis pakai <th> atau <td>, sehingga tanggal pasti masuk Header.
+    private function decideOrientation(int $totalCols): string
+    {
+        return $totalCols <= 12 ? 'portrait' : 'landscape';
+    }
+
+
+    // =========================================================================
+    // JALUR PDF: Z-PATTERN (KIRI-KANAN LALU ATAS-BAWAH)
+    // =========================================================================
+
+    private function resolveExportContext(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd): array
+    {
+        $alldata = [];
+        if ($typeProcess === 'production') {
+            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process);
+        } elseif ($typeProcess === 'foregoing') {
+            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process);
+        } else {
+            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process);
+        }
+
+        $prosesInfo = $this->getProsesInfo($process);
+        $deviceInfo = $this->getDeviceInfo($device);
+
+        $namaProduk = $deviceInfo['name'] ?? strtoupper($device);
+        $namaProsesRaw = $prosesInfo['name'] ?? strtoupper($process);
+
+        if ($typeProcess === 'production') {
+            $cleanName = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
+            $judulProses = 'Production Process Control Sheet ' . $cleanName;
+        } elseif ($typeProcess === 'startup') {
+            $cleanName = trim(preg_replace('/\s*Start\s*Up\s*Check\s*Sheet.*$/i', '', $namaProsesRaw));
+            $judulProses = $cleanName . ' Start Up Check Sheet';
+        } else {
+            $judulProses = $namaProsesRaw;
+        }
+
+        $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
+        $machNo = $alldata[0]['machno'] ?? '';
+        return [$alldata, $namaProduk, $judulProses, $noDok, $machNo];
+    }
+
     private function countHeaderRows(array $grid): int
     {
         $r = 1;
         while ($r <= $grid['totalRows']) {
             $rowOrigins = $grid['origins'][$r] ?? [];
             if (count($rowOrigins) === 1 && reset($rowOrigins)['colspan'] === $grid['totalCols']) {
-                $r++; // Lewati judul full-width
+                $r++; 
                 continue;
             }
             break;
         }
-        
         $firstCell = $grid['origins'][$r][1] ?? null;
         if ($firstCell) {
             return ($r - 1) + $firstCell['rowspan'];
@@ -189,12 +228,10 @@ class History extends BaseController
     {
         $startRow = $this->findRealHeaderStartRow($grid, $headerRowCount);
         $requiredSpan = $headerRowCount - $startRow + 1;
-
         $count = 0;
         $c = 1;
         while ($c <= $grid['totalCols']) {
             $origin = $grid['origins'][$startRow][$c] ?? null;
-            // Disesuaikan: Tidak mewajibkan "isHeader" karena tabel kadang pakai <td>
             if ($origin === null || $origin['rowspan'] !== $requiredSpan) {
                 break;
             }
@@ -204,13 +241,15 @@ class History extends BaseController
         return $count;
     }
 
-    private function computeUnsafeBoundaries(array $grid, int $headerRowCount): array
+    // Row Boundaries Tetap Dipertahankan: Agar teks tidak terbelah tengah-tengah secara vertikal
+    private function computeUnsafeRowBoundaries(array $grid, int $headerRowCount): array
     {
         $unsafe = [];
-        for ($r = 1; $r <= $headerRowCount; $r++) {
-            foreach ($grid['origins'][$r] ?? [] as $c => $cell) {
-                if ($cell['colspan'] > 1 && $cell['colspan'] < $grid['totalCols']) {
-                    for ($p = $c; $p < $c + $cell['colspan'] - 1; $p++) {
+        for ($c = 1; $c <= $grid['totalCols']; $c++) {
+            for ($r = $headerRowCount + 1; $r <= $grid['totalRows']; $r++) {
+                $cell = $grid['origins'][$r][$c] ?? null;
+                if ($cell !== null && $cell['rowspan'] > 1) {
+                    for ($p = $r; $p < $r + $cell['rowspan'] - 1; $p++) {
                         $unsafe[$p] = true; 
                     }
                 }
@@ -219,188 +258,141 @@ class History extends BaseController
         return $unsafe;
     }
 
-    private function computeColumnChunks(int $totalCols, int $identityColCount, array $unsafeBoundaries, int $dataColsPerPage): array
+    // BRUTAL CHUNKING: Tidak ada lagi 'unsafeBoundaries' untuk kolom! Bebas potong per 10 kolom!
+    private function computeColumnChunks(int $totalCols, int $identityColCount, int $dataColsPerPage): array
     {
         $chunks = [];
         $start = $identityColCount + 1;
-
         while ($start <= $totalCols) {
-            $target = min($totalCols, $start + $dataColsPerPage - 1);
-            $end = $target;
-
-            while ($end > $start && !empty($unsafeBoundaries[$end])) {
-                $end--;
-            }
-            if ($end === $start && !empty($unsafeBoundaries[$end])) {
-                $end = $target;
-                while ($end < $totalCols && !empty($unsafeBoundaries[$end])) {
-                    $end++;
-                }
-            }
-
+            $end = min($totalCols, $start + $dataColsPerPage - 1);
             $chunks[] = [$start, $end];
             $start = $end + 1;
         }
-
         return $chunks ?: [[$identityColCount + 1, $totalCols]];
     }
 
-    private function fillExcelFromGrid(array $grid, Worksheet $sheet, int $startRow, int $headerRowCount): void
+    private function computeRowChunks(int $totalRows, int $headerRowCount, array $unsafeRowBoundaries, int $maxRowsPerPage): array
     {
-        foreach ($grid['origins'] as $r => $rowCells) {
-            foreach ($rowCells as $c => $cell) {
-                $row = $startRow + $r - 1;
-                $coord = Coordinate::stringFromColumnIndex($c) . $row;
-                $sheet->setCellValue($coord, $cell['value']);
+        $chunks = [];
+        $start = $headerRowCount + 1;
+        
+        if ($start > $totalRows) {
+            return [[$start, $start]]; 
+        }
 
-                $style = $sheet->getStyle($coord);
-                $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $style->getAlignment()
-                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                    ->setVertical(Alignment::VERTICAL_CENTER)
-                    ->setWrapText(true);
-
-                // Styling header berdasarkan deteksi tinggi header
-                if ($r <= $headerRowCount) {
-                    $style->getFont()->setBold(true);
-                    $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8F9FA');
-                }
-
-                if ($cell['colspan'] > 1 || $cell['rowspan'] > 1) {
-                    $endCol = $c + $cell['colspan'] - 1;
-                    $endRow = $row + $cell['rowspan'] - 1;
-                    $endCoord = Coordinate::stringFromColumnIndex($endCol) . $endRow;
-                    $sheet->mergeCells("{$coord}:{$endCoord}");
+        while ($start <= $totalRows) {
+            $target = min($totalRows, $start + $maxRowsPerPage - 1);
+            $end = $target;
+            
+            // Cari batas aman secara vertikal
+            while ($end > $start && !empty($unsafeRowBoundaries[$end])) {
+                $end--;
+            }
+            
+            // Jika batas amannya kepanjangan, biarkan saja. Dompdf pintar mengurus vertikal break.
+            if ($end === $start && !empty($unsafeRowBoundaries[$end])) {
+                $end = $target;
+                while ($end < $totalRows && !empty($unsafeRowBoundaries[$end])) {
+                    $end++;
                 }
             }
+            
+            $chunks[] = [$start, $end];
+            $start = $end + 1;
         }
+        return $chunks;
     }
 
-    // LOGIKA BARU: Memasukkan Kop Surat langsung ke dalam sel Excel agar tampil dan rapi di Print Preview
-    private function insertKopSuratToSheet(Worksheet $sheet, string $namaProduk, string $judulProses, string $noDok, string $machNo, int $maxCol): int
+    private function build2DChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, array $rowRange): string
     {
-        $midStart = max(2, (int)ceil($maxCol / 3));
-        $rightStart = max(3, (int)ceil($maxCol * 2 / 3));
-
-        // Kiri: Info Perusahaan
-        $sheet->setCellValue('A1', "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
-        $sheet->mergeCells('A1:' . Coordinate::stringFromColumnIndex($midStart - 1) . '4');
-        $sheet->getStyle('A1')->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
-        $sheet->getStyle('A1')->getFont()->setBold(true);
-
-        // Tengah: Judul Dokumen
-        $sheet->setCellValue(Coordinate::stringFromColumnIndex($midStart) . '1', $judulProses . "\n(" . $namaProduk . ")");
-        $sheet->mergeCells(Coordinate::stringFromColumnIndex($midStart) . '1:' . Coordinate::stringFromColumnIndex($rightStart - 1) . '4');
-        $sheet->getStyle(Coordinate::stringFromColumnIndex($midStart) . '1')->getAlignment()
-            ->setWrapText(true)
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_TOP);
-        $sheet->getStyle(Coordinate::stringFromColumnIndex($midStart) . '1')->getFont()->setBold(true)->setSize(12)->setUnderline(true);
-
-        // Kanan: No Dokumen & Approval
-        $dokText = "No. Dok : " . $noDok . "\nRevisi : 12\nBerlaku : 11 Mei 2026\nChecked : ________________";
-        $sheet->setCellValue(Coordinate::stringFromColumnIndex($rightStart) . '1', $dokText);
-        $sheet->mergeCells(Coordinate::stringFromColumnIndex($rightStart) . '1:' . Coordinate::stringFromColumnIndex($maxCol) . '4');
-        $sheet->getStyle(Coordinate::stringFromColumnIndex($rightStart) . '1')->getAlignment()
-            ->setWrapText(true)
-            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
-            ->setVertical(Alignment::VERTICAL_TOP);
-
-        // Bawah: Info Mesin
-        $sheet->setCellValue('A5', "MACHINE No : " . $machNo . "        AG Paste Type : ");
-        $sheet->mergeCells('A5:' . Coordinate::stringFromColumnIndex($maxCol) . '5');
-        $sheet->getStyle('A5')->getFont()->setBold(true);
-
-        return 6; // Mengembalikan baris ke-6 sebagai tempat dimulainya tabel data
-    }
-
-    private function buildChunkTableHtml(array $grid, int $identityColCount, array $chunkRange, int $headerRowCount, string $kopSuratHtml): string
-    {
-        [$start, $end] = $chunkRange;
+        [$startCol, $endCol] = $colRange;
+        [$startRow, $endRow] = $rowRange;
 
         $colMap = [];
         for ($c = 1; $c <= $identityColCount; $c++) {
             $colMap[$c] = count($colMap) + 1;
         }
-        for ($c = $start; $c <= $end; $c++) {
+        for ($c = $startCol; $c <= $endCol; $c++) {
             $colMap[$c] = count($colMap) + 1;
         }
-        $totalColsInChunk = count($colMap);
         $totalOriginalCols = $grid['totalCols'];
+        
+        $renderRow = function (int $r) use ($grid, $colMap, $totalOriginalCols): string {
+            $html = '<tr>'; // TR selalu dicetak agar rowspan tabel tidak hancur
+            
+            if (isset($grid['origins'][$r])) {
+                foreach ($grid['origins'][$r] as $c => $origin) {
+                    // Logika Baru: Potong colspan otomatis sesuai batas kolom halaman ini!
+                    $actualColspan = 0;
+                    $overlapEndCol = min($c + $origin['colspan'] - 1, $totalOriginalCols);
+                    for($i = $c; $i <= $overlapEndCol; $i++) {
+                        if (isset($colMap[$i])) $actualColspan++;
+                    }
 
-        $renderRow = function (int $r, bool $isHeaderForce = false) use ($grid, $colMap, $totalOriginalCols): string {
-            $html = '<tr>';
-            foreach ($colMap as $origCol => $newCol) {
-                $origin = $grid['origins'][$r][$origCol] ?? null;
-                if ($origin === null) {
-                    continue; 
+                    if ($actualColspan > 0) {
+                        $tag = $origin['isHeader'] ? 'th' : 'td';
+                        $rowspanAttr = $origin['rowspan'] > 1 ? ' rowspan="' . $origin['rowspan'] . '"' : '';
+                        $colspanAttr = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
+                        $value = htmlspecialchars($origin['value'], ENT_QUOTES, 'UTF-8');
+                        $html .= "<{$tag}{$rowspanAttr}{$colspanAttr}>{$value}</{$tag}>";
+                    }
                 }
-                $tag = ($origin['isHeader'] || $isHeaderForce) ? 'th' : 'td';
-                $rowspanAttr = $origin['rowspan'] > 1 ? ' rowspan="' . $origin['rowspan'] . '"' : '';
-
-                $effectiveColspan = ($origin['colspan'] === $totalOriginalCols) ? count($colMap) : $origin['colspan'];
-                $colspanAttr = $effectiveColspan > 1 ? ' colspan="' . $effectiveColspan . '"' : '';
-
-                $value = htmlspecialchars($origin['value'], ENT_QUOTES, 'UTF-8');
-                $html .= "<{$tag}{$rowspanAttr}{$colspanAttr}>{$value}</{$tag}>";
             }
-            return $html . '</tr>';
+            $html .= '</tr>';
+            return $html;
         };
 
         $thead = '<thead>';
-        $thead .= '<tr><td colspan="' . $totalColsInChunk . '" style="border:none; padding:0;">' . $kopSuratHtml . '</td></tr>';
         for ($r = 1; $r <= $headerRowCount; $r++) {
-            $thead .= $renderRow($r, true); // Paksa sebagai <th> agar rapi di PDF
+            $thead .= $renderRow($r);
         }
         $thead .= '</thead>';
 
         $tbody = '<tbody>';
-        for ($r = $headerRowCount + 1; $r <= $grid['totalRows']; $r++) {
-            $tbody .= $renderRow($r);
+        for ($r = $startRow; $r <= $endRow; $r++) {
+            if ($r <= $grid['totalRows']) {
+                $tbody .= $renderRow($r);
+            }
         }
         $tbody .= '</tbody>';
 
-        return '<table class="table-cs" border="1" style="table-layout: fixed; word-wrap: break-word;">' . $thead . $tbody . '</table>';
+        return '<table class="table-cs">' . $thead . $tbody . '</table>';
     }
 
     private function buildKopSuratHtml(string $namaProduk, string $judulProses, string $noDok, string $machNo): string
     {
         return '
-        <table width="100%" style="margin-bottom: 8px; font-size: 9px; table-layout: auto;">
+        <table style="width: 100%; border: none; font-size: 9px; table-layout: fixed; margin-bottom: 5px;">
             <tr>
-                <td width="30%" valign="top" style="line-height: 1.2; border: none !important; text-align: left;">
-                    PT. FOXCONN TECHNOLOGIES INDONESIA<br>
-                    Production Engineering Department<br>
-                    Process Engineering Section<br>
+                <td style="width: 35%; vertical-align: top; border: none; padding: 0;">
+                    PT. FOXCONN TECHNOLOGIES INDONESIA<br>Production Engineering Department<br>Process Engineering Section<br>
                     <b>' . htmlspecialchars($namaProduk) . '</b>
                 </td>
-                <td width="50%" align="center" valign="top" style="border: none !important;">
+                <td style="width: 40%; text-align: center; vertical-align: top; border: none; padding: 0;">
                     <b style="font-size: 12px; text-decoration: underline;">' . htmlspecialchars($judulProses) . '</b><br>
                     <span style="font-size: 10px;">(' . htmlspecialchars($namaProduk) . ')</span>
                 </td>
-                <td width="20%" align="right" valign="top" style="border: none !important;">
-                    <table width="100%" border="1" cellpadding="2" cellspacing="0" style="border-collapse: collapse; font-size: 8px; text-align: left;">
-                        <tr><td width="40%">No. Dok</td><td>: ' . htmlspecialchars($noDok) . '</td></tr>
-                        <tr><td>Revisi</td><td>: 12</td></tr>
-                        <tr><td>Berlaku</td><td>: 11 Mei 2026</td></tr>
-                        <tr><td colspan="2" align="center" style="height: 16px; vertical-align: middle;">Checked</td></tr>
+                <td style="width: 25%; text-align: right; vertical-align: top; border: none; padding: 0;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 8px;" border="1">
+                        <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
+                        <tr><td style="text-align: left; padding: 2px;">Revisi</td><td style="text-align: left; padding: 2px;">: 12</td></tr>
+                        <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: 11 Mei 2026</td></tr>
+                        <tr><td colspan="2" style="text-align: center; height: 16px; vertical-align: middle; padding: 2px;">Checked</td></tr>
                     </table>
                 </td>
             </tr>
         </table>
-        <div style="font-size: 9px; margin-bottom: 5px; text-align: left;">
-            MACHINE No &nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($machNo) . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            AG Paste Type &nbsp;&nbsp;: 
-        </div>
-        ';
+        <div style="font-size: 9px; text-align: left;">
+            MACHINE No &nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($machNo) . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AG Paste Type &nbsp;&nbsp;: 
+        </div>';
     }
 
-    private function decideOrientation(int $totalCols): string
-    {
-        return $totalCols <= 12 ? 'portrait' : 'landscape';
-    }
 
-    private function resolveExportContext(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd): array
+    // =========================================================================
+    // JALUR EXCEL: FUNGSI KHUSUS EXCEL (JUGA BRUTAL CHUNKING)
+    // =========================================================================
+
+    private function resolveExportContextExcel(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd): array
     {
         $alldata = [];
         if ($typeProcess === 'production') {
@@ -417,12 +409,11 @@ class History extends BaseController
         $namaProduk = $deviceInfo['name'] ?? strtoupper($device);
         $namaProsesRaw = $prosesInfo['name'] ?? strtoupper($process);
 
-        // LOGIKA BARU: Format Judul Pintar (Regex)
         if ($typeProcess === 'production') {
-            $cleanName = trim(preg_replace('/^(Production Process Control Sheet|Production Control Sheet|Produciton Control Sheet of|Produciton Control Sheet)\s*/i', '', $namaProsesRaw));
+            $cleanName = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
             $judulProses = 'Production Process Control Sheet ' . $cleanName;
         } elseif ($typeProcess === 'startup') {
-            $cleanName = trim(preg_replace('/\s*Start Up Check Sheet\s*(.*)$/i', ' $1', $namaProsesRaw));
+            $cleanName = trim(preg_replace('/\s*Start\s*Up\s*Check\s*Sheet.*$/i', '', $namaProsesRaw));
             $judulProses = $cleanName . ' Start Up Check Sheet';
         } else {
             $judulProses = $namaProsesRaw;
@@ -430,9 +421,191 @@ class History extends BaseController
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
         $machNo = $alldata[0]['machno'] ?? '';
-
         return [$alldata, $namaProduk, $judulProses, $noDok, $machNo];
     }
+
+    private function countHeaderRowsExcel(array $grid): int
+    {
+        $startRow = 1;
+        while ($startRow <= $grid['totalRows']) {
+            $rowOrigins = $grid['origins'][$startRow] ?? [];
+            if (count($rowOrigins) === 1 && reset($rowOrigins)['colspan'] === $grid['totalCols']) {
+                $startRow++; 
+                continue;
+            }
+            break;
+        }
+        
+        $firstCell = null;
+        for ($c = 1; $c <= $grid['totalCols']; $c++) {
+            if (isset($grid['origins'][$startRow][$c])) {
+                $firstCell = $grid['origins'][$startRow][$c];
+                break;
+            }
+        }
+
+        if ($firstCell) {
+            return ($startRow - 1) + max(1, $firstCell['rowspan']);
+        }
+        return max(1, $startRow);
+    }
+
+    private function findRealHeaderStartRowExcel(array $grid, int $headerRowCount): int
+    {
+        for ($r = 1; $r <= $headerRowCount; $r++) {
+            $rowOrigins = $grid['origins'][$r] ?? [];
+            if (count($rowOrigins) === 1) {
+                $only = reset($rowOrigins);
+                if ($only['colspan'] === $grid['totalCols']) {
+                    continue; 
+                }
+            }
+            return $r;
+        }
+        return 1;
+    }
+
+    private function countIdentityColumnsExcel(array $grid, int $headerRowCount): int
+    {
+        $startRow = $this->findRealHeaderStartRowExcel($grid, $headerRowCount);
+        $requiredSpan = $headerRowCount - $startRow + 1;
+        $count = 0;
+        $c = 1;
+        while ($c <= $grid['totalCols']) {
+            $origin = $grid['origins'][$startRow][$c] ?? null;
+            if ($origin === null || $origin['rowspan'] < $requiredSpan) {
+                break;
+            }
+            $count += $origin['colspan'];
+            $c += $origin['colspan'];
+        }
+        return $count;
+    }
+
+    private function computeColumnChunksExcel(int $totalCols, int $identityColCount, int $dataColsPerPage): array
+    {
+        $chunks = [];
+        $start = $identityColCount + 1;
+        while ($start <= $totalCols) {
+            $end = min($totalCols, $start + $dataColsPerPage - 1);
+            $chunks[] = [$start, $end];
+            $start = $end + 1;
+        }
+        return $chunks ?: [[$identityColCount + 1, $totalCols]];
+    }
+
+    private function insertKopSuratToSheetExcel(Worksheet $sheet, string $namaProduk, string $judulProses, string $noDok, string $machNo, int $identityColCount, array $chunksExcel, array $grid): int
+    {
+        $idCol = max(1, $identityColCount);
+        $idLetter = Coordinate::stringFromColumnIndex($idCol);
+
+        $sheet->setCellValue('A1', "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
+        $sheet->mergeCells("A1:{$idLetter}3");
+        $sheet->getStyle('A1')->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(9);
+
+        $sheet->setCellValue('A4', "MACHINE No : " . $machNo . "      AG Paste Type : ");
+        $sheet->mergeCells("A4:{$idLetter}4");
+        $sheet->getStyle('A4')->getFont()->setBold(true)->setSize(9);
+
+        $hasTitleInGrid = false;
+        $firstRow = $grid['origins'][1] ?? [];
+        if (count($firstRow) === 1 && reset($firstRow)['colspan'] === $grid['totalCols']) {
+            $hasTitleInGrid = true;
+        }
+
+        foreach ($chunksExcel as $chunk) {
+            $sc = $chunk[0];
+            $ec = $chunk[1];
+            if ($sc > $ec) continue;
+            
+            $width = $ec - $sc + 1;
+            $docWidth = ($width >= 3) ? 2 : $width; 
+            $docColStart = max($sc, $ec - $docWidth + 1);
+            
+            $docStartLetter = Coordinate::stringFromColumnIndex($docColStart);
+            $ecLetter = Coordinate::stringFromColumnIndex($ec);
+
+            $dokText = "No. Dok : " . $noDok . "\nRevisi : 12\nBerlaku : 11 Mei 2026\nChecked : ________";
+            $sheet->setCellValue("{$docStartLetter}1", $dokText);
+            if ($ec > $docColStart) {
+                $sheet->mergeCells("{$docStartLetter}1:{$ecLetter}3");
+            }
+            $sheet->getStyle("{$docStartLetter}1")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_TOP);
+            
+            if (!$hasTitleInGrid && $docColStart > $sc) {
+                $midStartLetter = Coordinate::stringFromColumnIndex($sc);
+                $midEndLetter = Coordinate::stringFromColumnIndex($docColStart - 1);
+                $sheet->setCellValue("{$midStartLetter}1", $judulProses . "\n(" . $namaProduk . ")");
+                if (($docColStart - 1) > $sc) {
+                    $sheet->mergeCells("{$midStartLetter}1:{$midEndLetter}3");
+                }
+                $sheet->getStyle("{$midStartLetter}1")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                $sheet->getStyle("{$midStartLetter}1")->getFont()->setBold(true)->setSize(11)->setUnderline(true);
+            }
+            
+            $scLetter = Coordinate::stringFromColumnIndex($sc);
+            $sheet->getStyle("{$scLetter}1:{$ecLetter}4")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        }
+
+        for ($r=1; $r<=3; $r++) $sheet->getRowDimension($r)->setRowHeight(16);
+        $sheet->getRowDimension(4)->setRowHeight(20);
+
+        return 5; 
+    }
+
+    private function fillExcelFromGridExcel(array $grid, Worksheet $sheet, int $startRow, int $headerRowCount, int $identityColCount, array $chunksExcel): void
+    {
+        foreach ($grid['origins'] as $r => $rowCells) {
+            foreach ($rowCells as $c => $cell) {
+                $row = $startRow + $r - 1;
+                $endCol = $c + $cell['colspan'] - 1;
+                $endRow = $row + $cell['rowspan'] - 1;
+
+                $overlaps = [];
+                if ($c <= $identityColCount) {
+                    $overlaps[] = [$c, min($endCol, $identityColCount)];
+                }
+                foreach ($chunksExcel as $chunk) {
+                    $overlapStart = max($c, $chunk[0]);
+                    $overlapEnd = min($endCol, $chunk[1]);
+                    if ($overlapStart <= $overlapEnd) {
+                        $overlaps[] = [$overlapStart, $overlapEnd];
+                    }
+                }
+                
+                if (empty($overlaps)) { $overlaps[] = [$c, $endCol]; }
+                
+                foreach ($overlaps as $overlap) {
+                    $sc = $overlap[0];
+                    $ec = $overlap[1];
+                    $scLetter = Coordinate::stringFromColumnIndex($sc);
+                    $ecLetter = Coordinate::stringFromColumnIndex($ec);
+                    
+                    $coord = $scLetter . $row;
+                    $sheet->setCellValue($coord, $cell['value']);
+                    
+                    if ($ec > $sc || $cell['rowspan'] > 1) {
+                        $sheet->mergeCells("{$coord}:{$ecLetter}{$endRow}");
+                    }
+                    
+                    $style = $sheet->getStyle("{$coord}:{$ecLetter}{$endRow}");
+                    $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                    $style->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+                          
+                    if ($r <= $headerRowCount) {
+                        $style->getFont()->setBold(true);
+                        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8F9FA');
+                    }
+                }
+            }
+        }
+    }
+
+
+    // =========================================================================
+    // EXPORT METHOD INTI
+    // =========================================================================
 
     public function exportExcel()
     {
@@ -445,7 +618,7 @@ class History extends BaseController
         $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) : '';
         $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) : '';
 
-        [$alldata, $namaProduk, $judulProses, $noDok, $machNo] = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd);
+        [$alldata, $namaProduk, $judulProses, $noDok, $machNo] = $this->resolveExportContextExcel($typeProcess, $process, $device, $dateStart, $dateEnd);
 
         $_SERVER['REQUEST_URI'] = 'exportExcel';
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
@@ -461,21 +634,24 @@ class History extends BaseController
         }
 
         $grid = $this->buildGrid($tableElement);
-        $headerRowCount = $this->countHeaderRows($grid);
-        $identityColCount = $this->countIdentityColumns($grid, $headerRowCount);
+        
+        $headerRowCount = $this->countHeaderRowsExcel($grid);
+        $identityColCount = $this->countIdentityColumnsExcel($grid, $headerRowCount);
+        
+        $maxCol = max(1, $grid['totalCols']);
+        $orientation = $this->decideOrientation($maxCol);
+        
+        $maxColsPerPage = $orientation === 'landscape' ? self::PDF_MAX_COLS_LANDSCAPE : self::PDF_MAX_COLS_PORTRAIT;
+        $dataColsPerPage = max(1, $maxColsPerPage - $identityColCount);
+        
+        $chunksExcel = $this->computeColumnChunksExcel($maxCol, $identityColCount, $dataColsPerPage);
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $maxCol = max(1, $grid['totalCols']);
-        
-        // Membangun Kop Surat in-cell
-        $startRow = $this->insertKopSuratToSheet($sheet, $namaProduk, $judulProses, $noDok, $machNo, $maxCol);
+        $startRow = $this->insertKopSuratToSheetExcel($sheet, $namaProduk, $judulProses, $noDok, $machNo, $identityColCount, $chunksExcel, $grid);
+        $this->fillExcelFromGridExcel($grid, $sheet, $startRow, $headerRowCount, $identityColCount, $chunksExcel);
 
-        // Menulis tabel data mulai dari bawah kop surat
-        $this->fillExcelFromGrid($grid, $sheet, $startRow, $headerRowCount);
-
-        // Mengatur lebar kolom agar rapi dan tidak bocor panjang
         $colWidths = [];
         foreach ($grid['origins'] as $r => $rowCells) {
             foreach ($rowCells as $c => $cell) {
@@ -487,18 +663,14 @@ class History extends BaseController
                 }
             }
         }
-
-        $maxAllowedWidth = 18; 
+        $maxAllowedWidth = 16; 
         for ($c = 1; $c <= $maxCol; $c++) {
             $colLetter = Coordinate::stringFromColumnIndex($c);
             $width = $colWidths[$c] ?? 10; 
-            if ($width > $maxAllowedWidth) {
-                $width = $maxAllowedWidth; 
-            }
+            if ($width > $maxAllowedWidth) { $width = $maxAllowedWidth; }
             $sheet->getColumnDimension($colLetter)->setWidth($width);
         }
 
-        // KUNCI EXCEL PRINT PREVIEW: Mengulang Baris Kop Surat (1-5) + Baris Header Tabel
         $totalHeaderRowsToRepeat = ($startRow - 1) + $headerRowCount;
         $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $totalHeaderRowsToRepeat);
         
@@ -507,15 +679,30 @@ class History extends BaseController
             $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('A', $identityColLetter);
         }
 
+        foreach ($chunksExcel as $idx => $chunk) {
+            if ($idx < count($chunksExcel) - 1) {
+                $breakColIndex = $chunk[1] + 1; 
+                if ($breakColIndex <= $maxCol) {
+                    $breakLetter = Coordinate::stringFromColumnIndex($breakColIndex);
+                    $sheet->setBreak($breakLetter . '1', \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_COLUMN);
+                }
+            }
+        }
+
         $sheet->getPageMargins()->setTop(0.5);
         $sheet->getPageMargins()->setLeft(0.4);
         $sheet->getPageMargins()->setRight(0.4);
         $sheet->getPageMargins()->setBottom(0.5);
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
-        $orientation = $this->decideOrientation($maxCol);
         $sheet->getPageSetup()->setOrientation(
             $orientation === 'landscape' ? PageSetup::ORIENTATION_LANDSCAPE : PageSetup::ORIENTATION_PORTRAIT
         );
+
+        if ($maxCol <= 10) {
+            $sheet->getPageSetup()->setScale(100);
+        } else {
+            $sheet->getPageSetup()->setScale(80);
+        }
 
         $fileName = 'Report_' . $typeProcess . '_' . $process . '_' . date('Ymd_Hi') . '.xlsx';
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -556,32 +743,67 @@ class History extends BaseController
         $grid = $this->buildGrid($tableElement);
         $headerRowCount = $this->countHeaderRows($grid);
         $identityColCount = $this->countIdentityColumns($grid, $headerRowCount);
-        $unsafeBoundaries = $this->computeUnsafeBoundaries($grid, $headerRowCount);
+        
+        $unsafeRowBoundaries = $this->computeUnsafeRowBoundaries($grid, $headerRowCount);
 
         $orientation = $this->decideOrientation($grid['totalCols']);
+        
         $maxColsPerPage = $orientation === 'landscape' ? self::PDF_MAX_COLS_LANDSCAPE : self::PDF_MAX_COLS_PORTRAIT;
+        $maxRowsPerPage = $orientation === 'landscape' ? self::PDF_MAX_ROWS_LANDSCAPE : self::PDF_MAX_ROWS_PORTRAIT;
+
         $dataColsPerPage = max(1, $maxColsPerPage - $identityColCount);
-        $chunks = $this->computeColumnChunks($grid['totalCols'], $identityColCount, $unsafeBoundaries, $dataColsPerPage);
+        
+        $colChunks = $this->computeColumnChunks($grid['totalCols'], $identityColCount, $dataColsPerPage);
+        $rowChunks = $this->computeRowChunks($grid['totalRows'], $headerRowCount, $unsafeRowBoundaries, $maxRowsPerPage);
 
         $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo);
 
         $pagesHtml = '';
-        foreach ($chunks as $i => $range) {
-            $pageBreakStyle = $i > 0 ? ' style="page-break-before: always;"' : '';
-            $tableHtml = $this->buildChunkTableHtml($grid, $identityColCount, $range, $headerRowCount, $kopSuratHtml);
-            $pagesHtml .= "<div{$pageBreakStyle}>{$tableHtml}</div>";
+        $chunkCount = 0;
+        
+        // Z-PATTERN: ROW DI LUAR, COLUMN DI DALAM
+        foreach ($rowChunks as $j => $rRange) {
+            foreach ($colChunks as $i => $cRange) {
+                $pageBreakStyle = ($chunkCount > 0) ? ' style="page-break-before: always;"' : '';
+                $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $rRange);
+                
+                $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
+                $chunkCount++;
+            }
         }
 
+        // MARGIN 30PX KIRI-KANAN-BAWAH DAN KOP SURAT FIXED POSITION
         $customCSS = '
         <style>
-            @page { size: A4 ' . $orientation . '; margin: 12px; }
+            @page { 
+                size: A4 ' . $orientation . '; 
+                margin-top: 140px; 
+                margin-bottom: 30px;
+                margin-left: 30px; 
+                margin-right: 30px; 
+            }
             body { font-family: Arial, Helvetica, sans-serif; font-size: 7px; }
-            table { width: 100%; border-collapse: collapse; }
-            table td, table th { border: 1px solid black !important; padding: 2px !important; text-align: center; vertical-align: middle; }
+            header {
+                position: fixed;
+                top: -125px;
+                left: 0px;
+                right: 0px;
+                height: 110px;
+            }
+            table.table-cs { width: 100%; border-collapse: collapse; border: 1px solid black; }
+            table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 3px !important; text-align: center; vertical-align: middle; word-wrap: break-word; }
             th { background-color: #f8f9fa; font-weight: bold; }
+            tr { page-break-inside: avoid; }
         </style>';
 
-        $finalHtml = $customCSS . $pagesHtml;
+        $finalHtml = "
+        <html>
+        <head>{$customCSS}</head>
+        <body>
+            <header>{$kopSuratHtml}</header>
+            <main>{$pagesHtml}</main>
+        </body>
+        </html>";
 
         $options = new \Dompdf\Options();
         $options->set('isHtml5ParserEnabled', true);
