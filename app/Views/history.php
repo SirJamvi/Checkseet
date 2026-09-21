@@ -228,7 +228,6 @@
       var processCode = document.getElementById("process").value;
       var machineSelect = $('#machno');
 
-      // Kosongkan opsi lama
       machineSelect.empty();
 
       if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
@@ -237,12 +236,15 @@
         return;
       }
 
-      machineSelect.append('<option value="">-- Pilih Machine Number --</option>');
+      // Opsi untuk mengambil seluruh dokumen (termasuk dokumen lama)
+      machineSelect.append('<option value="">-- Semua Mesin (Tidak Dipilih) --</option>');
 
       $.ajax({
-        url: "<?php echo base_url();?>machine/list?process=" + processCode,
+        url: "<?php echo base_url(); ?>machine/list?process=" + processCode,
         dataType: 'JSON',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         success: function(data) {
           for (let i = 0; i < data.length; i++) {
             var newOption = new Option(data[i].machine_name, data[i].machine_name, false, false);
@@ -257,39 +259,30 @@
       });
     }
 
-    function updateTable() {
-      // 1. Cek Process (Wajib)
+ function updateTable() {
       var checkProcess = document.getElementById("process").value;
       if (!checkProcess || checkProcess === "") {
-        console.log("Menunggu pilihan proses...");
         return;
       }
 
-      // HAPUS BLOK "Wajib Machine Number" di sini agar user bisa mencari 
-      // opsi "-- Semua Mesin --" untuk menampilkan dokumen lama.
+      // Sembunyikan peringatan wajib mesin agar bisa cari dokumen pakai opsi "Semua Mesin"
       $('#machno-warning').hide();
 
-      let resDate, dateStart, dateEnd, process, model, lotNo, machno, device, typeProcess;
+      let resDate = convertDate();
+      let process = document.getElementById("process").value;
+      let model = $('#ModelName').val();
+      let lotNo = $('#lotNo').val();
 
-      resDate = convertDate();
-      dateStart = resDate.dateStart;
-      dateEnd = resDate.dateEnd;
-
-      process = document.getElementById("process").value;
-      model = $('#ModelName').val();
-      lotNo = $('#lotNo').val();
-
-      // ==============================================================
-      // PERBAIKAN BUG SELECT2 NULL & SPASI NAMA MESIN
-      // ==============================================================
-      machno = $('#machno').val();
+      // PERBAIKAN: Amankan data mesin agar tidak mengirim string "null"
+      let machno = $('#machno').val();
       if(machno === null) { 
           machno = ""; 
       }
       machno = encodeURIComponent(machno);
-      // ==============================================================
 
-      device = "";
+      let device = "";
+      let typeProcess = "";
+
       if (process != null) {
         device = process.split("-")[0];
         if (process.split("-")[1] == 'p') {
@@ -301,25 +294,16 @@
         }
       }
 
-      console.log(dateStart, dateEnd, process, model, lotNo, machno);
       const xhr = new XMLHttpRequest();
       xhr.open("GET", "<?php echo base_url();?>" + typeProcess + "/data?dateStart=" + resDate.dateStart + " 00:00:00" + "&dateEnd=" + resDate.dateEnd + " 23:59:59" + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device, true);
       xhr.onload = (e) => {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            var table = document.getElementById('table');
-            $('#submit').show();
-            table.innerHTML = xhr.responseText;
-          } else {
-            var table = document.getElementById('table');
-            $('#submit').show();
-            table.innerHTML = "";
-            console.error(xhr.statusText);
-          }
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          $('#submit').show();
+          document.getElementById('table').innerHTML = xhr.responseText;
+        } else if (xhr.readyState === 4) {
+          $('#submit').show();
+          document.getElementById('table').innerHTML = "<div class='alert alert-danger'>Gagal menarik data dari server.</div>";
         }
-      };
-      xhr.onerror = (e) => {
-        console.error(xhr.statusText);
       };
       xhr.send(null);
     }
@@ -442,17 +426,27 @@
     }
 
     function download_table_as_excel() {
-      // WAJIB: cek Machine Number sebelum download
-      if (!$('#machno').val()) {
-        alert('Silakan pilih Machine Number terlebih dahulu.');
+      let resDate = convertDate();
+      let d1 = moment(resDate.dateStart);
+      let d2 = moment(resDate.dateEnd);
+
+      // Limit Export 2 Bulan
+      if (d2.diff(d1, 'days') > 62) {
+        alert("Maaf, Export Data maksimal 2 bulan untuk menjaga stabilitas server!");
         return;
       }
 
-      let resDate = convertDate();
       let process = document.getElementById("process").value;
       let model = $('#ModelName').val();
       let lotNo = $('#lotNo').val();
+
+      // Amankan pembacaan machno untuk export
       let machno = $('#machno').val();
+      if (machno === null) {
+        machno = "";
+      }
+      machno = encodeURIComponent(machno);
+
       let device = "";
       let typeProcess = "";
 
@@ -467,43 +461,48 @@
         }
       }
 
-      // Arahkan ke endpoint Controller exportExcel
       let exportUrl = "<?= base_url('history/exportExcel') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
-
-      // Buka tab baru agar browser otomatis mendownload
       window.open(exportUrl, '_blank');
     }
 
-    function download_table_as_pdf() {
-      // WAJIB: cek Machine Number sebelum download
-      if (!$('#machno').val()) {
-        alert('Silakan pilih Machine Number terlebih dahulu.');
-        return;
+   function download_table_as_pdf() {
+      let resDate = convertDate();
+      let d1 = moment(resDate.dateStart);
+      let d2 = moment(resDate.dateEnd);
+      
+      // Limit Export 2 Bulan (Pesan Pak Doni)
+      if (d2.diff(d1, 'days') > 62) {
+          alert("Maaf, Export Data maksimal 2 bulan untuk menjaga stabilitas server!");
+          return;
       }
 
-      let resDate = convertDate();
       let process = document.getElementById("process").value;
       let model = $('#ModelName').val();
       let lotNo = $('#lotNo').val();
+      
+      // Amankan pembacaan machno untuk export (Mencegah null dan spasi putus)
       let machno = $('#machno').val();
+      if(machno === null) { machno = ""; }
+      machno = encodeURIComponent(machno);
+
       let device = "";
       let typeProcess = "";
 
       if (process != null) {
         device = process.split("-")[0];
-        if (process.split("-")[1] == 'p') {
-          typeProcess = "production";
-        } else if (process.split("-")[1] == 'f') {
-          typeProcess = "foregoing";
-        } else {
-          typeProcess = "startup";
+        if (process.split("-")[1] == 'p') { 
+            typeProcess = "production"; 
+        } else if (process.split("-")[1] == 'f') { 
+            typeProcess = "foregoing"; 
+        } else { 
+            typeProcess = "startup"; 
         }
       }
 
-      // Arahkan ke endpoint Controller exportPDF yang baru dibuat
+      // Arahkan ke endpoint Controller exportPDF
       let exportUrl = "<?= base_url('history/exportPDF') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
-
-      // Buka di tab baru, CodeIgniter akan otomatis memunculkan pop-up download PDF
+      
+      // Buka di tab baru untuk trigger download otomatis
       window.open(exportUrl, '_blank');
     }
 

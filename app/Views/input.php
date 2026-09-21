@@ -49,7 +49,6 @@
                   <select class="form-control" id="device-txt" name="device-txt" onchange=updateDevice() required>
                     <option class="dropdown-item" value="-">choose device</option>
                     <?php
-                      
                       if($session->get('role')=="sl"){
                         echo '
                           <option value="sl33">Single Laser 3.3</option>
@@ -73,7 +72,6 @@
                         ';
                       }
                     ?>
-                    
                   </select>
                 </div>
               </div>
@@ -96,11 +94,9 @@
                 <label for="process-txt" class="col-sm-2 col-form-label">Process</label>
                 <div class="col-sm-6">
                   <select class="form-control" id="process-txt" name="process-txt" required>
-                  
                   </select>
                 </div>
               </div>
-    
     
               <!-- Model name -->
               <div class="mb-3 row">
@@ -117,6 +113,7 @@
                   <input type="text" class="form-control-plaintext" id="docno" value="-" readonly>
                 </div>
               </div>
+
               <!-- Button to Open the Modal -->
               <button type="button" class="btn btn-lg btn-warning" data-bs-toggle="modal" data-bs-target="#myModal">
                 Catatan
@@ -126,23 +123,16 @@
               <div class="modal" id="myModal">
                 <div class="modal-dialog modal-xl">
                   <div class="modal-content">
-
-                    <!-- Modal Header -->
                     <div class="modal-header">
                       <h4 class="modal-title" id="catatan-modal-header">Catatan</h4>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-
-                    <!-- Modal body -->
                     <div class="modal-body" id="catatan-modal-body">
                       Modal body..
                     </div>
-
-                    <!-- Modal footer -->
                     <div class="modal-footer">
                       <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
                     </div>
-
                   </div>
                 </div>
               </div>
@@ -157,11 +147,11 @@
                 </div>
               </div>
     
-              <!-- Machine Number: diubah menjadi select untuk Select2 -->
+              <!-- Machine Number diubah jadi Select2 -->
               <div class="mb-3 row">
-                <label for="machno-txt" class="col-sm-2 col-form-label">Machine Number</label>
+                <label for="machno-txt" class="col-sm-2 col-form-label">Machine Number <span style="color:red;">*</span></label>
                 <div class="col-sm-6">
-                  <select class="form-control" id="machno-txt" name="machno-txt" required>
+                  <select class="form-control" id="machno-txt" name="machno-txt">
                     <option value="">-- Ketik atau Pilih Machine Number --</option>
                   </select>
                 </div>
@@ -207,7 +197,8 @@
             
           </div>
           <div class="d-flex justify-content-center">
-            <button type="submit" class="btn btn-lg btn-primary btn-block mx-auto" id="submit" onclick="return confirm('Apakah kamu yakin?');">Submit</button>
+            <!-- Tombol Submit Diberi Penjaga checkSubmit() -->
+            <button type="submit" class="btn btn-lg btn-primary btn-block mx-auto" id="submit" onclick="return checkSubmit();">Submit</button>
           </div>
           
         </div>
@@ -219,7 +210,7 @@
 <script>
 $(document).ready(function()
 {
-    // Aktifkan fitur search (Select2) pada dropdown Machine Number
+    // Aktifkan Select2
     $('#machno-txt').select2({
         placeholder: "-- Ketik atau Pilih Machine Number --",
         allowClear: true,
@@ -234,26 +225,37 @@ $(document).ready(function()
 
     $('#type-process-txt, #process-txt').change(function()
     {
-        console.log("[DEBUG1] ",$('#process-txt').val())
         updateInput()
         updateDocNo()
-        updateMachine() // Panggil update mesin setiap kali proses/tipe berubah
+        updateMachine() // Panggil update mesin setiap ganti proses
     })
-    
     $('#type-process-txt').change(function(){
         document.getElementById("form-action").action="/"+document.getElementById("type-process-txt").value
     })
-    
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl')
 });
 
-// Fungsi baru untuk mengambil data mesin dari database berdasarkan process_code
+// FUNGSI PENJAGA FORM DAN PEMBUNUH GHOST INPUT
+function checkSubmit() {
+    var machno = $('#machno-txt').val();
+    
+    if (!machno || machno === "") {
+        alert("GAGAL: Machine Number WAJIB dipilih atau diisi sebelum Submit!");
+        return false; 
+    }
+    
+    // Hapus ghost input dari layout lama agar tidak menimpa Select2
+    $('#form-input input[name="machno-txt"]').remove();
+    
+    return confirm('Apakah kamu yakin ingin menyimpan data ini?');
+}
+
+// FUNGSI UPDATE LIST MESIN VIA AJAX
 function updateMachine()
 {
     var processCode = document.getElementById("process-txt").value;
     var machineSelect = $('#machno-txt');
     
-    // Kosongkan opsi lama dan set placeholder awal
     machineSelect.empty().append('<option value="">-- Ketik atau Pilih Machine Number --</option>');
 
     if(!processCode || processCode == '-' || processCode == 'null'){
@@ -270,7 +272,6 @@ function updateMachine()
                 var newOption = new Option(data[i].machine_name, data[i].machine_name, false, false);
                 machineSelect.append(newOption);
             }
-            // Trigger change agar Select2 merender ulang daftar pilihannya
             machineSelect.trigger('change');
         },
         error: function(data) {
@@ -346,8 +347,6 @@ function updateInput()
     submit_button.disabled=false
     cnt_error.value=0
     updateSetting()
-    
-    // ... KODE SEBELUMNYA ...
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/form?device="+device+"&process="+process, true);
     xhr.onload = (e) => {
@@ -359,10 +358,8 @@ function updateInput()
                 
                 var processValue = document.getElementById("process-txt")
                 var header_modal = document.getElementById('catatan-modal-header')
-                
-                // PERBAIKAN DI SINI: Cek apakah index valid sebelum mengambil teks
-                if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
-                    header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
+                if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                    header_modal.innerHTML=processValue.options[processValue.selectedIndex].text
                 }
             } else {
                 var form_input = document.getElementById('form-input')
@@ -377,18 +374,15 @@ function updateInput()
     };
     xhr.send(null);
 }
-// ... KODE SETELAHNYA ...
 
 function updateDocNo()
 {
     var docNo = document.getElementById("docno")
     var processValue = document.getElementById("process-txt")
-    if(processValue.selectedIndex < 0){
-        docNo.value = "-";
-        return;
+    if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+        var text = processValue.options[processValue.selectedIndex].text;
+        docNo.value=text.split(" ")[0]
     }
-    var text = processValue.options[processValue.selectedIndex].text;
-    docNo.value=text.split(" ")[0]
 }
 
 function updateDevice()
@@ -421,7 +415,7 @@ function updateDevice()
                 }
                 updateInput()
                 updateDocNo()
-                updateMachine() // Update list mesin saat device/proses berganti
+                updateMachine() // Update mesin ketika device ganti
             },
             error: function(data)
             {
@@ -433,14 +427,8 @@ function updateDevice()
 
 function updateSetting()
 {
-  var processVal = $('#process-txt').val();
-  if(!processVal || processVal === '-' || processVal === 'null'){
-      var modal_body = document.getElementById('catatan-modal-body');
-      modal_body.innerHTML = " ";
-      return;
-  }
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+processVal, true);
+  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+$('#process-txt').val(), true);
   xhr.onload = (e) => {
       if (xhr.readyState === 4) {
           if (xhr.status === 200) {
