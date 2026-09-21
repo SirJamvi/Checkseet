@@ -258,19 +258,15 @@
     }
 
     function updateTable() {
-      // Tambahkan 3 baris ini untuk mencegah request error saat form kosong
+      // 1. Cek Process (Wajib)
       var checkProcess = document.getElementById("process").value;
       if (!checkProcess || checkProcess === "") {
+        console.log("Menunggu pilihan proses...");
         return;
       }
 
-      // WAJIB: Machine Number harus diisi sebelum data ditampilkan
-      var checkMachno = document.getElementById("machno").value;
-      if (!checkMachno || checkMachno === "") {
-        document.getElementById('table').innerHTML = "";
-        $('#machno-warning').show();
-        return;
-      }
+      // HAPUS BLOK "Wajib Machine Number" di sini agar user bisa mencari 
+      // opsi "-- Semua Mesin --" untuk menampilkan dokumen lama.
       $('#machno-warning').hide();
 
       let resDate, dateStart, dateEnd, process, model, lotNo, machno, device, typeProcess;
@@ -280,20 +276,18 @@
       dateEnd = resDate.dateEnd;
 
       process = document.getElementById("process").value;
-
-      // ==============================================================
-      // TAMBAHAN REM DARURAT: Mencegah Error 500 di Console
-      // Jika proses masih kosong (baru loading), batalkan penarikan data
-      // ==============================================================
-      if (!process || process === "") {
-        console.log("Menunggu pilihan proses...");
-        return;
-      }
-
-      console.log("process ", process);
       model = $('#ModelName').val();
       lotNo = $('#lotNo').val();
+
+      // ==============================================================
+      // PERBAIKAN BUG SELECT2 NULL & SPASI NAMA MESIN
+      // ==============================================================
       machno = $('#machno').val();
+      if(machno === null) { 
+          machno = ""; 
+      }
+      machno = encodeURIComponent(machno);
+      // ==============================================================
 
       device = "";
       if (process != null) {
