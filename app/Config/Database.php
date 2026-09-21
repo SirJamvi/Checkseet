@@ -25,30 +25,25 @@ class Database extends Config
      * @var array<string, mixed>
      */
     public array $default = [
-        'DSN'          => '',
-        'hostname'     => 'localhost',
-        'username'     => '',
-        'password'     => '',
-        'database'     => '',
-        'DBDriver'     => 'MySQLi',
-        'DBPrefix'     => '',
-        'pConnect'     => false,
-        'DBDebug'      => true,
-        'charset'      => 'utf8mb4',
-        'DBCollat'     => 'utf8mb4_general_ci',
-        'swapPre'      => '',
-        'encrypt'      => false,
-        'compress'     => false,
-        'strictOn'     => false,
-        'failover'     => [],
-        'port'         => 3306,
-        'numberNative' => false,
-        'dateFormat'   => [
-            'date'     => 'Y-m-d',
-            'datetime' => 'Y-m-d H:i:s',
-            'time'     => 'H:i:s',
-        ],
-    ];
+    'DSN'          => '',
+    'hostname'     => 'localhost',
+    'username'     => '',
+    'password'     => '',
+    'database'     => 'startup',
+    'DBDriver'     => 'MySQLi',
+    'DBPrefix'     => '',
+    'pConnect'     => false,
+    'DBDebug'      => true,
+    'charset'      => 'utf8mb4',
+    'DBCollat'     => 'utf8mb4_general_ci',
+    'swapPre'      => '',
+    'encrypt'      => false,
+    'compress'     => false,
+    'strictOn'     => false,
+    'failover'     => [],
+    'port'         => 3306,
+];
+
 
     //    /**
     //     * Sample database connection for SQLite3.
@@ -104,27 +99,40 @@ class Database extends Config
     //     * @var array<string, mixed>
     //     */
        public array $second = [
-           'DSN'        => '',
-           'hostname'   => '192.168.132.130',
-           'username'   => 'sa',
-           'password'   => 'SSItopadmin',
-           'database'   => 'db_TMS',
-           'schema'     => 'dbo',
-           'DBDriver'   => 'SQLSRV',
-           'DBPrefix'   => '',
-           'pConnect'   => false,
-           'DBDebug'    => true,
-           'charset'    => 'utf8',
-           'swapPre'    => '',
-           'encrypt'    => false,
-           'failover'   => [],
-           'port'       => 1433,
-    //        'dateFormat' => [
-    //            'date'     => 'Y-m-d',
-    //            'datetime' => 'Y-m-d H:i:s',
-    //            'time'     => 'H:i:s',
-    //        ],
-       ];
+            'DSN'        => '',
+            'hostname'   => '192.168.132.130',
+            'username'   => 'sa',
+            'password'   => 'SSItopadmin',
+            'database'   => 'db_TMS',
+            'schema'     => 'dbo',
+            'DBDriver'   => 'SQLSRV',
+            'DBPrefix'   => '',
+            'pConnect'   => false,
+            'DBDebug'    => true,
+            'charset'    => 'utf8',
+            'swapPre'    => '',
+            'encrypt'    => false,
+            'failover'   => [],
+            'port'       => 1433,
+        ];  
+
+        public array $external = [
+            'DSN'        => '',
+            'hostname'   => '', // contoh: 'vpn.perusahaan.com' atau IP publik
+            'username'   => '',
+            'password'   => '',
+            'database'   => 'db_TMS',
+            'schema'     => 'dbo',
+            'DBDriver'   => 'SQLSRV',
+            'DBPrefix'   => '',
+            'pConnect'   => false,
+            'DBDebug'    => true,
+            'charset'    => 'utf8',
+            'swapPre'    => '',
+            'encrypt'    => false,
+            'failover'   => [],
+            'port'       => 1433,
+        ];
 
     //    /**
     //     * Sample database connection for OCI8.

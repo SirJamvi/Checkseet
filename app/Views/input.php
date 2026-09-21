@@ -4,10 +4,15 @@
 <main>
 <link rel="stylesheet" href="assets/css/jquery-ui.css">
 <link rel="stylesheet" href="assets/css/global.css">
+<!-- Tambahkan CSS Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <script src="assets/js/jquery-3.7.1.js"></script>
 <script src="assets/js/jquery-3.7.1.min.js"></script>
 <script src="assets/js/jquery-ui.js"></script>
 <script src="assets/js/form/test.js"></script>
+<!-- Tambahkan JS Select2 -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <?= $this->include('layout/navbar'); ?>
 
@@ -34,7 +39,6 @@
                 <label for="date" class="col-sm-2 col-form-label">Date</label>
                 <div class="col-sm-6">
                   <input type="date" class="form-control" id="date" name="date" value="<?php echo date('Y-m-d');?>">
-                  <!-- <div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div> -->
                 </div>
               </div>
     
@@ -153,10 +157,13 @@
                 </div>
               </div>
     
+              <!-- Machine Number: diubah menjadi select untuk Select2 -->
               <div class="mb-3 row">
                 <label for="machno-txt" class="col-sm-2 col-form-label">Machine Number</label>
                 <div class="col-sm-6">
-                  <input type="text" class="form-control" id="machno-txt" name="machno-txt" onkeyup="this.value = this.value.toUpperCase()">
+                  <select class="form-control" id="machno-txt" name="machno-txt" required>
+                    <option value="">-- Ketik atau Pilih Machine Number --</option>
+                  </select>
                 </div>
               </div>
     
@@ -212,6 +219,13 @@
 <script>
 $(document).ready(function()
 {
+    // Aktifkan fitur search (Select2) pada dropdown Machine Number
+    $('#machno-txt').select2({
+        placeholder: "-- Ketik atau Pilih Machine Number --",
+        allowClear: true,
+        width: '100%'
+    });
+
     updateDevice()
     $('#submit').hide();
     if($('#msgsuccess').html()!="Kosong"){
@@ -223,12 +237,47 @@ $(document).ready(function()
         console.log("[DEBUG1] ",$('#process-txt').val())
         updateInput()
         updateDocNo()
+        updateMachine() // Panggil update mesin setiap kali proses/tipe berubah
     })
+    
     $('#type-process-txt').change(function(){
         document.getElementById("form-action").action="/"+document.getElementById("type-process-txt").value
     })
+    
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl')
 });
+
+// Fungsi baru untuk mengambil data mesin dari database berdasarkan process_code
+function updateMachine()
+{
+    var processCode = document.getElementById("process-txt").value;
+    var machineSelect = $('#machno-txt');
+    
+    // Kosongkan opsi lama dan set placeholder awal
+    machineSelect.empty().append('<option value="">-- Ketik atau Pilih Machine Number --</option>');
+
+    if(!processCode || processCode == '-' || processCode == 'null'){
+        machineSelect.trigger('change');
+        return;
+    }
+
+    $.ajax({
+        url: "<?php echo base_url();?>machine/list?process=" + processCode,
+        dataType: 'JSON',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        success: function(data) {
+            for (let i = 0; i < data.length; i++) {
+                var newOption = new Option(data[i].machine_name, data[i].machine_name, false, false);
+                machineSelect.append(newOption);
+            }
+            // Trigger change agar Select2 merender ulang daftar pilihannya
+            machineSelect.trigger('change');
+        },
+        error: function(data) {
+            console.log("Error mengambil data mesin: ", data);
+        }
+    });
+}
 
 function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
 {
@@ -238,7 +287,6 @@ function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
     $.ajax(
     {
         url: "<?php echo base_url();?>home/ajaxAutofill",
-        // type:'POST',
         dataType:'JSON',
         headers: {'X-Requested-With': 'XMLHttpRequest'},
         data:"empid-txt=" + empid,
@@ -251,7 +299,6 @@ function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
             const element = document.getElementById(empIdlTag);  
             element.classList.remove("visible"); 
             element.classList.add("invisible"); 
-            console.log("sukses",data)
         },
         error: function(data)
         {
@@ -261,32 +308,26 @@ function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
             $(shiftTag).val('');            
             $(groupTag).val('');
             $(nameTag).val('');
-            console.log("gagal")
         },
     });
     }
     else
     {
-    console.log("error 2")
-    $(shiftTag).val('');
-    $(groupTag).val('');
-    // document.getElementById("empid-lbl").style.display = "none";
+        $(shiftTag).val('');
+        $(groupTag).val('');
     }
 }
 
 function updateInput()
 {
-  
     let typeProcess,device,process;
     process=document.getElementById("process-txt").value
-    console.log("process ",process)
     if(process!=null){
         device=process.split("-")[0]
         if(process.split("-")[1] == 'p'){
             document.getElementById('model-txt').disabled = false;
             document.getElementById('lotno-txt').disabled = false;
             typeProcess="production";
-            console.log("disable truer eeruer")
         }
         else if(process.split("-")[1] == 'f'){
             document.getElementById('model-txt').disabled = false;
@@ -305,6 +346,8 @@ function updateInput()
     submit_button.disabled=false
     cnt_error.value=0
     updateSetting()
+    
+    // ... KODE SEBELUMNYA ...
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/form?device="+device+"&process="+process, true);
     xhr.onload = (e) => {
@@ -316,10 +359,11 @@ function updateInput()
                 
                 var processValue = document.getElementById("process-txt")
                 var header_modal = document.getElementById('catatan-modal-header')
-                header_modal.innerHTML=processValue.options[processValue.selectedIndex].text
-
                 
-                
+                // PERBAIKAN DI SINI: Cek apakah index valid sebelum mengambil teks
+                if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
+                    header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
+                }
             } else {
                 var form_input = document.getElementById('form-input')
                 $('#submit').hide();
@@ -333,11 +377,16 @@ function updateInput()
     };
     xhr.send(null);
 }
+// ... KODE SETELAHNYA ...
 
 function updateDocNo()
 {
     var docNo = document.getElementById("docno")
     var processValue = document.getElementById("process-txt")
+    if(processValue.selectedIndex < 0){
+        docNo.value = "-";
+        return;
+    }
     var text = processValue.options[processValue.selectedIndex].text;
     docNo.value=text.split(" ")[0]
 }
@@ -346,8 +395,6 @@ function updateDevice()
 {
     var docType = document.getElementById('type-process-txt').value
     var device = document.getElementById("device-txt").value
-    
-    console.log("ini doctype device",docType,device)
     
     $.ajax(
         {
@@ -372,9 +419,9 @@ function updateDevice()
                         processValue.add(option, processValue[processValue.length]);
                     }
                 }
-                console.log("[DEBUG2] ",$('#process-txt').val())
                 updateInput()
                 updateDocNo()
+                updateMachine() // Update list mesin saat device/proses berganti
             },
             error: function(data)
             {
@@ -386,8 +433,14 @@ function updateDevice()
 
 function updateSetting()
 {
+  var processVal = $('#process-txt').val();
+  if(!processVal || processVal === '-' || processVal === 'null'){
+      var modal_body = document.getElementById('catatan-modal-body');
+      modal_body.innerHTML = " ";
+      return;
+  }
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+$('#process-txt').val(), true);
+  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+processVal, true);
   xhr.onload = (e) => {
       if (xhr.readyState === 4) {
           if (xhr.status === 200) {

@@ -21,16 +21,17 @@
           <a class="nav-link" href="<?php echo base_url();?>history"><i class="fas fa-history"></i> History</a>
         </li>
         <?php
-          if($session->get('empid')){
+          if($session->get('state') == 'Approver' || $session->get('state') == 'Admin'){
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url().'approve"><i class="fas fa-thumbs-up"></i> Approve</a>
             </li>';
           }
-          else{
+          else if(!$session->get('empid')){
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url().'login"><i class="fas fa-sign-in-alt"></i> Login</a>
             </li>';
           }
+          
           if($session->get('isadmin')){
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url().'production"><i class="fas fa-industry"></i> Production</a>

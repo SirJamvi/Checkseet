@@ -32,15 +32,21 @@ class ProductionModel extends Model {
     }
     public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$process='',$model='',$lotno='',$machno='')
     {
-        $query = "SELECT * FROM production 
+        // PERBAIKAN: Menambahkan INNER JOIN ke tabel proses dan device 
+        // agar docno, process_name, dan device_name ikut terbawa
+        $query = "SELECT DISTINCT * 
+        FROM `production` as s
+        INNER JOIN (SELECT device, type, process_code, name as process_name, docno, revisi, berlaku FROM proses) as p ON s.process=p.process_code 
+        INNER JOIN (SELECT code, name as device_name FROM device) as d ON p.device=d.code
         WHERE 
-        `created_at` >= '$dateStart' AND 
-        `created_at` <= '$dateEnd' AND
-        `process` = '$process' AND
-        `model` LIKE '%$model%' AND   
-        `lotno` LIKE '%$lotno%' AND 
-        `machno` LIKE '%$machno%'
-        ORDER BY id";
+        s.created_at >= '$dateStart' AND 
+        s.created_at <= '$dateEnd' AND
+        s.process = '$process' AND
+        s.model LIKE '%$model%' AND   
+        s.lotno LIKE '%$lotno%' AND 
+        s.machno LIKE '%$machno%'
+        ORDER BY s.id";
+        
         $data = $this->query($query);
         return $data->getResultArray();
     }

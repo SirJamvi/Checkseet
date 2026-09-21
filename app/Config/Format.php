@@ -47,6 +47,8 @@ class Format extends BaseConfig
         'text/xml'         => XMLFormatter::class,
     ];
 
+    public int $jsonEncodeDepth = 512; // <- tambahkan baris ini kalau belum ada
+
     /**
      * --------------------------------------------------------------------------
      * Formatters Options

@@ -29,8 +29,6 @@ $routes->delete('/production/(:num)','Production::deleteProduction/$1');
 $routes->get('/startup', 'Startup::index'); 
 
 // PERBAIKAN UTAMA DI SINI:
-// Sebelumnya: $routes->get('/startup/form','Production::formInputStartup');
-// Menjadi:
 $routes->get('/startup/form','Startup::formInputStartup');
 
 $routes->post('/startup', 'Startup::createStartup');
@@ -55,8 +53,12 @@ $routes->get('/input/note-form/(:any)', 'Input::formStandard/$1');
 $routes->get('/history', 'History::index');
 $routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
 
-// TAMBAHAN: Route untuk export Excel
-// $routes->get('/history/exportExcel', 'History::exportExcel');
+// ==========================================================
+// RUTE EXPORT HISTORY (Excel & PDF Terpusat di History.php)
+// ==========================================================
+$routes->get('/history/exportExcel', 'History::exportExcel');
+$routes->get('/history/exportPDF', 'History::exportPDF');
+
 $routes->get('/approve', 'Approval::index');
 $routes->get('/approve-form', 'Approval::formApproval');
 $routes->post('/approve', 'Approval::updateApproval');
@@ -69,6 +71,8 @@ $routes->post('/process/update', 'Process::updateProcess');
 $routes->delete('/process/([0-9]+)', 'Process::deleteProcess/$1');
 $routes->get('/process/add', 'Process::addProcess');
 $routes->get('/process/edit/(:num)', 'Process::updateProcessForm/$1');
+// Route untuk mengambil list mesin berdasarkan proses (dipanggil oleh AJAX)
+$routes->get('/machine/list', 'Machine::getList');
 
 $routes->get('/device', 'Device::index');
 $routes->get('/device/list', 'Device::listDevice');
