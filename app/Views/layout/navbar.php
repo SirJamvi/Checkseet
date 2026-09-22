@@ -51,6 +51,10 @@
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url().'device"><i class="fas fa-desktop"></i> Device</a>
             </li>';
+            // MENU BARU: Machine List
+           echo '<li class="nav-item">
+              <a class="nav-link" href="'.base_url('machine').'"><i class="fas fa-server"></i> Machine</a>
+            </li>';
           }
           if($session->get('empid')){
             echo '<li class="nav-item">

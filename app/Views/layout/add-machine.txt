@@ -1,0 +1,153 @@
+<?= $this->extend('layout/templ-home'); ?>
+
+<?= $this->section('content'); ?>
+<main>
+    <?= $this->include('layout/navbar'); ?>
+    
+    <link rel="stylesheet" href="assets/css/daterangepicker.css">
+    <link rel="stylesheet" href="assets/css/global.css">
+
+    <div class="container-fluid">
+        <div class="card shadow mb-5">
+            <div class="card-header py-3">
+                <h3 class="m-0 font-weight-bold">Registrasi Mesin Baru</h3>
+            </div>
+            <div class="card-body">
+                
+                <form name="checksheet" action="<?= base_url('machine/save') ?>" method="POST">
+                    <?= csrf_field(); ?>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            
+                            <!-- 1. Device input -->
+                            <div class="mb-3 row">
+                                <label for="device" class="col-sm-3 col-form-label font-weight-bold">1. Device</label>
+                                <div class="col-sm-9">
+                                    <select id="device" name="device" class="form-select" required>
+                                        <option value="" selected>-- Pilih Device --</option>
+                                        <?php foreach ($devices as $d): ?>
+                                            <option value="<?= $d['code'] ?>"><?= $d['name'] ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 2. Type input (BARU) -->
+                            <div class="mb-3 row">
+                                <label for="type" class="col-sm-3 col-form-label font-weight-bold">2. Tipe</label>
+                                <div class="col-sm-9">
+                                    <select id="type" name="type" class="form-select" required disabled>
+                                        <option value="" selected>Pilih device terlebih dahulu</option>
+                                        <option value="production">Production</option>
+                                        <option value="startup">Startup</option>
+                                        <option value="foregoing">Foregoing</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 3. Process input -->
+                            <div class="mb-3 row">
+                                <label for="process_code" class="col-sm-3 col-form-label font-weight-bold">3. Process</label>
+                                <div class="col-sm-9">
+                                    <select id="process_code" name="process_code" class="form-select" required disabled>
+                                        <option value="" selected>Pilih device & tipe terlebih dahulu</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 4. Machine Name input -->
+                            <div class="mb-3 row">
+                                <label for="machine_name" class="col-sm-3 col-form-label font-weight-bold">4. Nama Mesin</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="machine_name" name="machine_name" placeholder="Contoh : FFDB 2.14" required>
+                                    <small class="text-muted">*Sistem akan mengubahnya menjadi huruf kapital secara otomatis.</small>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <?php 
+                        if (session()->getFlashdata('message')){ 
+                            echo '<p id="msgsuccess" class="invisible">' . session()->getFlashdata('message').'</p>'; 
+                        }else{ 
+                            echo '<p id="msgsuccess" class="invisible">Kosong</p>';
+                        }
+                    ?>
+
+                    <hr>
+                    <button type="submit" class="btn btn-primary" id="submit" onclick="return confirm('Apakah kamu yakin ingin menyimpan mesin ini?');">Submit Data</button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="assets/js/jquery.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    
+    if($('#msgsuccess').html() != "Kosong"){
+        alert($('#msgsuccess').html());
+    }
+
+    // Fungsi terpusat untuk memuat proses
+    function loadProcesses() {
+        var deviceCode = $('#device').val();
+        var docType = $('#type').val();
+        var processSelect = $('#process_code');
+
+        processSelect.empty().append('<option value="">Memuat data...</option>');
+        processSelect.prop('disabled', true);
+
+        // AJAX hanya berjalan jika Device DAN Tipe sudah dipilih
+        if (deviceCode !== '' && docType !== '') {
+            $.ajax({
+                url: "<?= base_url('machine/get-processes') ?>",
+                type: "GET",
+                data: { device_code: deviceCode, type: docType }, // Kirim 2 parameter
+                dataType: "JSON",
+                success: function(response) {
+                    processSelect.empty();
+                    if(response.length > 0) {
+                        processSelect.append('<option value="" selected>-- Pilih Process --</option>');
+                        $.each(response, function(index, item) {
+                            processSelect.append('<option value="' + item.process_code + '">' + item.name + ' (' + item.process_code + ')</option>');
+                        });
+                        processSelect.prop('disabled', false);
+                    } else {
+                        processSelect.append('<option value="">Tidak ada process untuk kriteria ini</option>');
+                    }
+                },
+                error: function() {
+                    alert("Gagal mengambil data proses dari server!");
+                }
+            });
+        } else {
+            processSelect.empty().append('<option value="" selected>Pilih device & tipe terlebih dahulu</option>');
+        }
+    }
+
+    // Trigger saat Device berubah
+    $('#device').change(function() {
+        if ($(this).val() !== '') {
+            $('#type').prop('disabled', false);
+            if ($('#type').val() === '') {
+                $('#type').val(''); // Reset tipe jika baru pilih device
+            }
+        } else {
+            $('#type').val('').prop('disabled', true);
+        }
+        loadProcesses();
+    });
+
+    // Trigger saat Tipe berubah
+    $('#type').change(function() {
+        loadProcesses();
+    });
+});
+</script>
+<?= $this->endSection(); ?>
