@@ -46,16 +46,6 @@ class Startup extends BaseController
         return view('/layout/'.$_GET['device']."/input/startup/".$_GET['process'],$data);
     }
 
-    public function data()
-    {
-        $data = [
-            'title' => 'History | Startup Management',
-            'alldata' => $this->StartupModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['device'],$_GET['process'])
-        ];
-
-        return view("/layout/".$_GET['device']."/history/startup/".$_GET['process'],$data);
-    }
-
     public function formEdit()
     {
         $data = [
@@ -86,13 +76,37 @@ class Startup extends BaseController
         return view("/layout/".$data['alldata'][0]['device']."/history/startup/".$data['alldata'][0]['process'],$data); 
     }
 
+   public function data()
+    {
+        $data = [
+            'title' => 'History | Startup Management',
+            'alldata' => $this->StartupModel->getAll(
+                $_GET['dateStart'], 
+                $_GET['dateEnd'], 
+                $_GET['device'], 
+                $_GET['process'], 
+                $_GET['model'] ?? '', 
+                $_GET['lotno'] ?? '', 
+                $_GET['machno'] ?? ''
+            )
+        ];
+        return view("/layout/".$_GET['device']."/history/startup/".$_GET['process'],$data);
+    }
+
     public function dataStartup()
     {
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->StartupModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['device'],$_GET['process'])
+            'alldata' => $this->StartupModel->getAll(
+                $_GET['dateStart'], 
+                $_GET['dateEnd'], 
+                $_GET['device'], 
+                $_GET['process'], 
+                $_GET['model'] ?? '', 
+                $_GET['lotno'] ?? '', 
+                $_GET['machno'] ?? ''
+            )
         ];
-
         return view("/layout/".$_GET['device']."/history/startup/".$_GET['process'],$data);
     }
 

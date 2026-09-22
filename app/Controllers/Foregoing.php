@@ -27,13 +27,20 @@ class Foregoing extends BaseController
         return view('foregoing', $data);
     }
 
-    public function data()
+ public function data()
     {
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->ForegoingModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['device'],$_GET['process'])
+            'alldata' => $this->ForegoingModel->getAll(
+                $_GET['dateStart'], 
+                $_GET['dateEnd'], 
+                $_GET['device'], 
+                $_GET['process'], 
+                $_GET['model'] ?? '', 
+                $_GET['lotno'] ?? '', 
+                $_GET['machno'] ?? ''
+            )
         ];
-
         return view("/layout/".$_GET['device']."/history/foregoing/".$_GET['process'],$data);
     }
 

@@ -46,8 +46,29 @@ class ForegoingModel extends Model {
         }
         return $result->getRow()->number ?? 0;
     }
-    public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$device='',$process='')
+    public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$device='',$process='',$model='',$lotno='',$machno='')
     {
+        $machnoCondition = "";
+        if ($machno === "") {
+            $machnoCondition = "AND (s.machno LIKE '%%' OR s.machno IS NULL)";
+        } else {
+            $machnoCondition = "AND s.machno LIKE '%$machno%'";
+        }
+
+        $modelCondition = "";
+        if ($model === "") {
+            $modelCondition = "AND (s.model LIKE '%%' OR s.model IS NULL)";
+        } else {
+            $modelCondition = "AND s.model LIKE '%$model%'";
+        }
+
+        $lotnoCondition = "";
+        if ($lotno === "") {
+            $lotnoCondition = "AND (s.lotno LIKE '%%' OR s.lotno IS NULL)";
+        } else {
+            $lotnoCondition = "AND s.lotno LIKE '%$lotno%'";
+        }
+
         $query = "SELECT DISTINCT *
         FROM `foregoing` as s
         INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code 
@@ -56,7 +77,8 @@ class ForegoingModel extends Model {
         s.created_at >= '$dateStart' AND 
         s.created_at <= '$dateEnd' AND
         s.device LIKE '%$device%' AND
-        `process` LIKE '%$process%'
+        s.process LIKE '%$process\%'$modelCondition 
+        $lotnoCondition$machnoCondition
         ORDER BY s.id";
         
         $data = $this->query($query);

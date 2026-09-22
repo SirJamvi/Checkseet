@@ -98,9 +98,12 @@ class Production extends BaseController
     
     public function dataProduction()
     {
+        // Penjaga Harga Mati: Kalau kosong, otomatis jadi "ALL"
+        $machno = (isset($_GET['machno']) && $_GET['machno'] !== '' && $_GET['machno'] !== 'null') ? $_GET['machno'] : 'ALL';
+        
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['process'],$_GET['model'],$_GET['lotno'],$_GET['machno'])
+            'alldata' => $this->ProductionModel->getAll($_GET['dateStart'],$_GET['dateEnd'],$_GET['process'],$_GET['model'],$_GET['lotno'],$machno)
         ];
 
         return view("/layout/".$_GET['device']."/history/production/".$_GET['process'],$data);

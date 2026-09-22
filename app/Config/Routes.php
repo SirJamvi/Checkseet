@@ -85,3 +85,9 @@ $routes->get('/device/edit/(:num)', 'Device::updateDeviceForm/$1');
 $routes->match(['GET', 'POST'], 'home/ajaxAutofill', 'Home::ajaxAutofill');
 $routes->get('/testing','Test::testEmp');
 $routes->get('/test2/([a-zA-Z0-9]+)/([a-zA-Z0-9]+)','Test::testStartup/$1/$2');
+
+// ==========================================================
+// RUTE CLEANSING DATA (Untuk Perbaikan Typo Machno Startup)
+// ==========================================================
+$routes->get('/cleansing', 'Cleansing::index');
+$routes->post('/cleansing/execute', 'Cleansing::execute');

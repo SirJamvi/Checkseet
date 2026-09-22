@@ -91,39 +91,37 @@ class ProductionModel extends Model
         $data = $this->query($query);
         return $data->getResultArray();
     }
-    public function getAll($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $process = '', $model = '', $lotno = '', $machno = '')
+   public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$process='',$model='',$lotno='',$machno='')
     {
         $machnoCondition = "";
-        if ($machno !== '') {
-            $machnoCondition = "AND s.machno LIKE '%$machno%'";
+        if ($machno === "") {
+            $machnoCondition = "AND (`machno` LIKE '%%' OR `machno` IS NULL)";
         } else {
-            $machnoCondition = "AND (s.machno LIKE '%%' OR s.machno IS NULL)";
+            $machnoCondition = "AND `machno` LIKE '%$machno%'";
         }
 
-        $query = "SELECT DISTINCT * 
-        FROM `production` as s
-        INNER JOIN (SELECT device, type, process_code, name as process_name, docno, revisi, berlaku FROM proses) as p ON s.process=p.process_code 
-        INNER JOIN (SELECT code, name as device_name FROM device) as d ON p.device=d.code
-        WHERE 
-        s.created_at >= '$dateStart' AND 
-        s.created_at <= '$dateEnd' AND
-        s.process = '$process' AND
-        s.model LIKE '%$model%' AND   
-        s.lotno LIKE '%$lotno%' $machnoCondition
-        ORDER BY s.id";
+        $modelCondition = "";
+        if ($model === "") {
+            $modelCondition = "AND (`model` LIKE '%%' OR `model` IS NULL)";
+        } else {
+            $modelCondition = "AND `model` LIKE '%$model%'";
+        }
 
-        $data = $this->query($query);
-        return $data->getResultArray();
-    }
+        $lotnoCondition = "";
+        if ($lotno === "") {
+            $lotnoCondition = "AND (`lotno` LIKE '%%' OR `lotno` IS NULL)";
+        } else {
+            $lotnoCondition = "AND `lotno` LIKE '%$lotno%'";
+        }
 
-    public function getByNumber($number)
-    {
-        $query = "SELECT * FROM production as cs
-        INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON cs.process = p.process_code
-        INNER JOIN (SELECT code, name as device_name FROM device) as d ON d.code = p.device
+        $query = "SELECT * FROM production 
         WHERE 
-        `number` = $number 
-        ORDER BY `par001`";
+        `created_at` >= '$dateStart' AND 
+        `created_at` <= '$dateEnd' AND
+        `process` = '$process'$modelCondition 
+        $lotnoCondition$machnoCondition
+        ORDER BY id";
+        
         $data = $this->query($query);
         return $data->getResultArray();
     }
