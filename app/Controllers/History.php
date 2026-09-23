@@ -492,7 +492,7 @@ class History extends BaseController
         
         // Mencegah error jika data Excel kosong
         $machNo = !empty($alldata) ? ($alldata[0]['machno'] ?? '') : '';
-        return [$alldata, $namaProduk, $judulProses, $noDok, $machNo];
+        return [$alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo];
     }
 
     private function countHeaderRowsExcel(array $grid): int
@@ -553,24 +553,9 @@ class History extends BaseController
         return $count;
     }
 
-    private function computeColumnChunksExcel(int $totalCols, int $identityColCount, int $dataColsPerPage): array
+    private function insertKopSuratToSheetExcel($sheet, string $namaProduk, string $judulProses, string $noDok, string $machNo, int $identityColCount, array $chunksExcel, array $grid, array $alldata, array $prosesInfo, string $typeProcess): int
     {
-        $chunks = [];
-        $start = $identityColCount + 1;
-        while ($start <= $totalCols) {
-            $end = min($totalCols, $start + $dataColsPerPage - 1);
-            $chunks[] = [$start, $end];
-            $start = $end + 1;
-        }
-        return $chunks ?: [[$identityColCount + 1, $totalCols]];
-    }
-
-    private function insertKopSuratToSheetExcel(Worksheet $sheet, string $namaProduk, string $judulProses, string $noDok, string $machNo, int $identityColCount, array $chunksExcel, array $grid, array $alldata, array $prosesInfo, string $typeProcess): int
-    {
-        $idCol = max(1, $identityColCount);
-        $idLetter = Coordinate::stringFromColumnIndex($idCol);
-
-        // 1. Otomatisasi Revisi & Tanggal Berlaku (Sama persis dengan PDF)
+        // 1. Tarik Tanggal & Revisi 
         $revisiValue = !empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0;
         $revisi = str_pad($revisiValue, 2, '0', STR_PAD_LEFT);
         
@@ -580,79 +565,78 @@ class History extends BaseController
             $timestamp = strtotime($prosesInfo['berlaku']);
         } else {
             $db = \Config\Database::connect();
-            $dataPertama = $db->table($typeProcess)
-                              ->where('process', $prosesInfo['process_code'] ?? '')
-                              ->orderBy('created_at', 'ASC')
-                              ->limit(1)
-                              ->get()
-                              ->getRowArray();
-            if (!empty($dataPertama['created_at'])) {
-                $timestamp = strtotime($dataPertama['created_at']);
-            }
+            $dataPertama = $db->table($typeProcess)->where('process', $prosesInfo['process_code'] ?? '')->orderBy('created_at', 'ASC')->limit(1)->get()->getRowArray();
+            if (!empty($dataPertama['created_at'])) $timestamp = strtotime($dataPertama['created_at']);
         }
-
         if ($timestamp !== false && $timestamp > 0) {
             $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
             $tglBerlaku = date('d', $timestamp) . ' ' . $bulanIndo[date('n', $timestamp) - 1] . ' ' . date('Y', $timestamp);
         }
 
-        // 2. Render Identitas Perusahaan di Kiri
+        $dokText = "No. Dok / No. : " . $noDok . "\nRevisi : " . $revisi . "\nBerlaku : " . $tglBerlaku . "\nChecked : ________";
+        if ($typeProcess === 'startup') {
+            $dokText = "No. Dok / No. : " . $noDok . "\nRevisi : " . $revisi . "\nBerlaku : " . $tglBerlaku . "\nQC / Production";
+        }
+
+        $idCol = max(1, $identityColCount);
+        $idLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($idCol);
+
+        // KIRI: Perusahaan (Cukup taruh di awal, Excel akan mengulangnya otomatis)
         $sheet->setCellValue('A1', "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
         $sheet->mergeCells("A1:{$idLetter}3");
-        $sheet->getStyle('A1')->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+        $sheet->getStyle('A1')->getAlignment()->setWrapText(true)->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(9);
-
+        
         $sheet->setCellValue('A4', "MACHINE No : " . $machNo . "      AG Paste Type : ");
         $sheet->mergeCells("A4:{$idLetter}4");
         $sheet->getStyle('A4')->getFont()->setBold(true)->setSize(9);
 
-        $hasTitleInGrid = false;
-        $firstRow = $grid['origins'][1] ?? [];
-        if (count($firstRow) === 1 && reset($firstRow)['colspan'] === $grid['totalCols']) {
-            $hasTitleInGrid = true;
-        }
-
-        // 3. Render Kotak Kontrol Dokumen di Kanan (Revisi, Berlaku, Checked)
-        foreach ($chunksExcel as $chunk) {
+        // KANAN & TENGAH: Loop tiap potongan halaman biar muncul di setiap lembar Print
+        foreach ($chunksExcel as $idx => $chunk) {
             $sc = $chunk[0];
             $ec = $chunk[1];
             if ($sc > $ec) continue;
             
+            // Lebarkan area kotak dokumen (Minimal 3-4 kolom agar tidak sempit)
             $width = $ec - $sc + 1;
-            $docWidth = ($width >= 3) ? 2 : $width; 
+            $docWidth = ($width >= 5) ? 4 : (($width >= 3) ? 3 : 2); 
             $docColStart = max($sc, $ec - $docWidth + 1);
             
-            $docStartLetter = Coordinate::stringFromColumnIndex($docColStart);
-            $ecLetter = Coordinate::stringFromColumnIndex($ec);
+            $docStartLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($docColStart);
+            $ecLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ec);
 
-            // Teks kontrol dokumen dinamis
-            $dokText = "No. Dok / No. : " . $noDok . "\nRevisi : " . $revisi . "\nBerlaku : " . $tglBerlaku . "\nChecked : ________";
-            if ($typeProcess === 'startup') {
-                $dokText = "No. Dok / No. : " . $noDok . "\nRevisi : " . $revisi . "\nBerlaku : " . $tglBerlaku . "\nQC / Production";
-            }
-
+            // Kotak Dokumen (Kanan)
             $sheet->setCellValue("{$docStartLetter}1", $dokText);
             if ($ec > $docColStart) {
                 $sheet->mergeCells("{$docStartLetter}1:{$ecLetter}3");
             }
-            $sheet->getStyle("{$docStartLetter}1")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_TOP);
+            $sheet->getStyle("{$docStartLetter}1")->getAlignment()->setWrapText(true)
+                  ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
+                  ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP);
             
-            if (!$hasTitleInGrid && $docColStart > $sc) {
-                $midStartLetter = Coordinate::stringFromColumnIndex($sc);
-                $midEndLetter = Coordinate::stringFromColumnIndex($docColStart - 1);
+            // Judul (Tengah)
+            $midStartCol = ($sc <= $idCol) ? $idCol + 1 : $sc;
+            if ($midStartCol < $docColStart) {
+                $midStartLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($midStartCol);
+                $midEndLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($docColStart - 1);
+                
                 $sheet->setCellValue("{$midStartLetter}1", $judulProses . "\n(" . $namaProduk . ")");
-                if (($docColStart - 1) > $sc) {
+                if (($docColStart - 1) > $midStartCol) {
                     $sheet->mergeCells("{$midStartLetter}1:{$midEndLetter}3");
                 }
-                $sheet->getStyle("{$midStartLetter}1")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                $sheet->getStyle("{$midStartLetter}1")->getAlignment()->setWrapText(true)
+                      ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                      ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
                 $sheet->getStyle("{$midStartLetter}1")->getFont()->setBold(true)->setSize(11)->setUnderline(true);
             }
             
-            $scLetter = Coordinate::stringFromColumnIndex($sc);
-            $sheet->getStyle("{$scLetter}1:{$ecLetter}4")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+            // Garis Bawah Kop
+            $scLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($sc);
+            $sheet->getStyle("{$scLetter}1:{$ecLetter}3")->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         }
 
-        for ($r=1; $r<=3; $r++) $sheet->getRowDimension($r)->setRowHeight(16);
+        // Tinggi baris direnggangkan
+        for ($r=1; $r<=3; $r++) $sheet->getRowDimension($r)->setRowHeight(18);
         $sheet->getRowDimension(4)->setRowHeight(20);
 
         return 5; 
@@ -706,6 +690,138 @@ class History extends BaseController
         }
     }
 
+    // --- FUNGSI 1: Pembuat Kop Surat Vertikal ---
+    private function insertKopSuratVertical($sheet, int $startRow, int $totalColsInBlock, string $namaProduk, string $judulProses, string $noDok, string $machNo, array $prosesInfo, string $typeProcess) {
+        $revisiValue = !empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0;
+        $revisi = str_pad($revisiValue, 2, '0', STR_PAD_LEFT);
+        
+        $tglBerlaku = '-';
+        if (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
+            $timestamp = strtotime($prosesInfo['berlaku']);
+        } else {
+            $db = \Config\Database::connect();
+            $dataPertama = $db->table($typeProcess)->where('process', $prosesInfo['process_code'] ?? '')->orderBy('created_at', 'ASC')->limit(1)->get()->getRowArray();
+            if (!empty($dataPertama['created_at'])) $timestamp = strtotime($dataPertama['created_at']);
+        }
+        if (isset($timestamp) && $timestamp !== false && $timestamp > 0) {
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $timestamp) . ' ' . $bulanIndo[date('n', $timestamp) - 1] . ' ' . date('Y', $timestamp);
+        }
+
+        $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
+
+        // --- KIRI: Identitas Perusahaan ---
+        $sheet->setCellValue("A{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
+        $sheet->mergeCells("A{$r1}:C{$r3}");
+        $sheet->getStyle("A{$r1}")->getAlignment()->setWrapText(true)->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP);
+        $sheet->getStyle("A{$r1}")->getFont()->setBold(true)->setSize(9);
+        
+        $sheet->setCellValue("A{$r4}", "MACHINE No : " . $machNo . "      AG Paste Type : ");
+        $sheet->mergeCells("A{$r4}:E{$r4}");
+        $sheet->getStyle("A{$r4}")->getFont()->setBold(true)->setSize(9);
+
+        // --- KANAN: Tabel Dokumen Control (Dibuat Kotak-kotak Bergaris) ---
+        // Alokasikan minimal 2-3 kolom terakhir untuk tabel ini
+        $docEndCol = $totalColsInBlock;
+        $docStartCol = max(4, $totalColsInBlock - 2); 
+        $docStartLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($docStartCol);
+        $docMidLetter   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($docStartCol + 1);
+        $docEndLetter   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($docEndCol);
+
+        $sheet->setCellValue("{$docStartLetter}{$r1}", "No. Dok / No.");
+        $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $noDok);
+        $sheet->setCellValue("{$docStartLetter}{$r2}", "Revisi");
+        $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $revisi);
+        $sheet->setCellValue("{$docStartLetter}{$r3}", "Berlaku");
+        $sheet->setCellValue("{$docMidLetter}{$r3}", ": " . $tglBerlaku);
+
+        // Gabungkan kolom value (Mid sampai End)
+        if ($docEndCol > $docStartCol + 1) {
+            $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
+            $sheet->mergeCells("{$docMidLetter}{$r2}:{$docEndLetter}{$r2}");
+            $sheet->mergeCells("{$docMidLetter}{$r3}:{$docEndLetter}{$r3}");
+        }
+
+        if ($typeProcess === 'startup') {
+            $sheet->setCellValue("{$docStartLetter}{$r4}", "QC");
+            $sheet->setCellValue("{$docMidLetter}{$r4}", "Production");
+            if ($docEndCol > $docStartCol + 1) $sheet->mergeCells("{$docMidLetter}{$r4}:{$docEndLetter}{$r4}");
+            $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        } else {
+            $sheet->setCellValue("{$docStartLetter}{$r4}", "Checked");
+            $sheet->mergeCells("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}");
+            $sheet->getStyle("{$docStartLetter}{$r4}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        }
+
+        // Terapkan Border Kotak ke Tabel Kanan
+        $boxStyle = $sheet->getStyle("{$docStartLetter}{$r1}:{$docEndLetter}{$r4}");
+        $boxStyle->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $boxStyle->getFont()->setSize(9);
+        $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r3}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
+
+        // --- TENGAH: Judul Proses (Tampil KECUALI di Startup) ---
+        if ($typeProcess !== 'startup' && $docStartCol > 4) {
+            $midEndLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($docStartCol - 1);
+            $sheet->setCellValue("D{$r1}", $judulProses . "\n(" . $namaProduk . ")");
+            $sheet->mergeCells("D{$r1}:{$midEndLetter}{$r3}");
+            $sheet->getStyle("D{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("D{$r1}")->getFont()->setBold(true)->setSize(11)->setUnderline(true);
+        }
+
+        // Garis bawah Kop untuk area kiri sampai sebelum Tabel Dokumen
+        $leftToMid = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(max(1, $docStartCol - 1));
+        $sheet->getStyle("A{$r1}:{$leftToMid}{$r3}")->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        
+        for ($r=$r1; $r<=$r3; $r++) $sheet->getRowDimension($r)->setRowHeight(18);
+        $sheet->getRowDimension($r4)->setRowHeight(20);
+    }
+
+    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $identityColCount, int $sc, int $ec) {
+        foreach ($grid['origins'] as $r => $rowCells) {
+            $targetRow = $startRow + $r - 1;
+            foreach ($rowCells as $c => $cell) {
+                $targetCol = 0;
+                // Masukkan Kolom Utama (Identitas Kiri)
+                if ($c <= $identityColCount) { $targetCol = $c; } 
+                // Masukkan Kolom Data (Sesuai potongan/batas yang diizinkan)
+                else if ($c >= $sc && $c <= $ec) { $targetCol = $identityColCount + ($c - $sc + 1); }
+
+                if ($targetCol > 0) {
+                    $cellLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($targetCol);
+                    $coord = $cellLetter . $targetRow;
+                    
+                    $val = html_entity_decode(strip_tags($cell['value'] ?? ''));
+                    $sheet->setCellValue($coord, $val);
+                    
+                    $colspan = $cell['colspan'] ?? 1;
+                    $rowspan = $cell['rowspan'] ?? 1;
+                    
+                    // Akali Colspan jika judul header kepanjangan melewati batas potongan
+                    $actualColspan = 1;
+                    if ($c <= $identityColCount) {
+                        $actualColspan = (($c + $colspan - 1) > $identityColCount) ? ($identityColCount - $c + 1 + ($ec - $sc + 1)) : $colspan;
+                    } else if ($c >= $sc && $c <= $ec) {
+                        $actualColspan = (($c + $colspan - 1) > $ec) ? ($ec - $c + 1) : $colspan;
+                    }
+
+                    if ($actualColspan > 1 || $rowspan > 1) {
+                        $endColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($targetCol + $actualColspan - 1);
+                        $endRow = $targetRow + $rowspan - 1;
+                        $sheet->mergeCells("{$coord}:{$endColLetter}{$endRow}");
+                    }
+                    
+                    $style = $sheet->getStyle($coord);
+                    $style->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                    $style->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+                    
+                    if (isset($cell['isHeader']) && $cell['isHeader']) {
+                        $style->getFont()->setBold(true);
+                        $style->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
+                    }
+                }
+            }
+        }
+    }
 
     // =========================================================================
     // EXPORT METHOD INTI
@@ -722,101 +838,85 @@ class History extends BaseController
         $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) : '';
         $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) : '';
 
-        // --- TAMBAHAN BARU: Tangkap parameter dari URL ---
         $model = $this->request->getGet('model') ?? '';
         $lotno = $this->request->getGet('lotno') ?? '';
-        $machno = $this->request->getGet('machno');
-        if ($machno === 'null' || $machno === null) { 
-            $machno = ''; 
-        }
+        $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        // --- UPDATE BARIS INI: Kirim parameter komplit ke Helper ---
-       [$alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo] = $this->resolveExportContextExcel($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+        [$alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo] = $this->resolveExportContextExcel($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
-        // BATAS GANTI KODE: Biarkan kode di bawah ini utuh jangan dihapus!
         $_SERVER['REQUEST_URI'] = 'exportExcel';
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
-        // ... kode logika PHPSpreadsheet seterusnya ...
-        try {
-            $htmlString = view($viewPath, ['alldata' => $alldata]);
-        } catch (\Exception $e) {
-            die("Error: File View " . $viewPath . " tidak ditemukan!");
-        }
+        try { $htmlString = view($viewPath, ['alldata' => $alldata]); } catch (\Exception $e) { die("Error: File View tidak ditemukan!"); }
 
         $tableElement = $this->extractTableElement($htmlString, 'table1');
-        if ($tableElement === null) {
-            die("Error: <table id=\"table1\"> tidak ditemukan di view " . $viewPath);
-        }
+        if ($tableElement === null) die("Error: table1 tidak ditemukan");
 
         $grid = $this->buildGrid($tableElement);
-        
-        $headerRowCount = $this->countHeaderRowsExcel($grid);
-        $identityColCount = $this->countIdentityColumnsExcel($grid, $headerRowCount);
+        $headerRowCount = $this->countHeaderRows($grid);
+        $identityColCount = $this->countIdentityColumns($grid, $headerRowCount);
         
         $maxCol = max(1, $grid['totalCols']);
-        $orientation = $this->decideOrientation($maxCol);
+
+        // --- RULE BARU: Penentuan Orientasi & Pemotongan Berdasarkan Type ---
+        $orientation = ($typeProcess === 'startup') ? 'portrait' : 'landscape';
         
-        $maxColsPerPage = $orientation === 'landscape' ? self::PDF_MAX_COLS_LANDSCAPE : self::PDF_MAX_COLS_PORTRAIT;
-        $dataColsPerPage = max(1, $maxColsPerPage - $identityColCount);
-        
-        $chunksExcel = $this->computeColumnChunksExcel($maxCol, $identityColCount, $dataColsPerPage);
+        if ($orientation === 'portrait') {
+            // FIX BUG STARTUP: Jangan dipotong ke samping. Biarkan 1 tabel utuh panjang ke bawah
+            $chunksExcel = [[1, $maxCol]]; 
+        } else {
+            // PRODUCTION/FOREGOING: Tabel panjang dipotong-potong
+            $maxColsPerPage = self::PDF_MAX_COLS_LANDSCAPE ?? 12;
+            $dataColsPerPage = max(1, $maxColsPerPage - $identityColCount);
+            $chunksExcel = $this->computeColumnChunks($maxCol, $identityColCount, $dataColsPerPage);
+        }
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
-       $startRow = $this->insertKopSuratToSheetExcel($sheet, $namaProduk, $judulProses, $noDok, $machNo, $identityColCount, $chunksExcel, $grid, $alldata, $prosesInfo, $typeProcess);
-        $this->fillExcelFromGridExcel($grid, $sheet, $startRow, $headerRowCount, $identityColCount, $chunksExcel);
 
-        $colWidths = [];
-        foreach ($grid['origins'] as $r => $rowCells) {
-            foreach ($rowCells as $c => $cell) {
-                if ($cell['colspan'] === 1) {
-                    $len = strlen((string)$cell['value']) + 2; 
-                    if (!isset($colWidths[$c]) || $len > $colWidths[$c]) {
-                        $colWidths[$c] = $len;
-                    }
-                }
-            }
-        }
-        $maxAllowedWidth = 16; 
-        for ($c = 1; $c <= $maxCol; $c++) {
-            $colLetter = Coordinate::stringFromColumnIndex($c);
-            $width = $colWidths[$c] ?? 10; 
-            if ($width > $maxAllowedWidth) { $width = $maxAllowedWidth; }
-            $sheet->getColumnDimension($colLetter)->setWidth($width);
-        }
-
-        $totalHeaderRowsToRepeat = ($startRow - 1) + $headerRowCount;
-        $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $totalHeaderRowsToRepeat);
-        
-        if ($identityColCount > 0) {
-            $identityColLetter = Coordinate::stringFromColumnIndex($identityColCount);
-            $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('A', $identityColLetter);
-        }
+        $currentRowOffset = 1;
+        $globalMaxCols = 0;
 
         foreach ($chunksExcel as $idx => $chunk) {
-            if ($idx < count($chunksExcel) - 1) {
-                $breakColIndex = $chunk[1] + 1; 
-                if ($breakColIndex <= $maxCol) {
-                    $breakLetter = Coordinate::stringFromColumnIndex($breakColIndex);
-                    $sheet->setBreak($breakLetter . '1', \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_COLUMN);
-                }
+            $sc = $chunk[0];
+            $ec = $chunk[1];
+            $totalColsInBlock = $identityColCount + ($ec - $sc + 1);
+            if ($totalColsInBlock > $globalMaxCols) $globalMaxCols = $totalColsInBlock;
+
+            $this->insertKopSuratVertical($sheet, $currentRowOffset, $totalColsInBlock, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo, $typeProcess);
+            
+            $tableStartRow = $currentRowOffset + 4; 
+            $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $identityColCount, $sc, $ec);
+            
+            $currentRowOffset = $tableStartRow + $grid['totalRows'] + 3;
+            if ($orientation === 'landscape') {
+                $sheet->setBreak('A' . ($currentRowOffset - 2), \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_ROW);
             }
         }
 
-        $sheet->getPageMargins()->setTop(0.5);
-        $sheet->getPageMargins()->setLeft(0.4);
-        $sheet->getPageMargins()->setRight(0.4);
-        $sheet->getPageMargins()->setBottom(0.5);
-        $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
-        $sheet->getPageSetup()->setOrientation(
-            $orientation === 'landscape' ? PageSetup::ORIENTATION_LANDSCAPE : PageSetup::ORIENTATION_PORTRAIT
-        );
+        // --- SETTING KERTAS FINAL ---
+        $sheet->getPageSetup()->setOrientation($orientation === 'portrait' ? \PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT : \PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+        
+        // Aturan Emas Excel: Paksa muat secara horizontal (FitToWidth=1), Bebas memanjang ke bawah (FitToHeight=0)
+        $sheet->getPageSetup()->setFitToPage(true);
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(0); 
+        $sheet->getPageMargins()->setTop(0.5)->setRight(0.3)->setLeft(0.3)->setBottom(0.5);
 
-        if ($maxCol <= 10) {
-            $sheet->getPageSetup()->setScale(100);
+        // Jika Startup, set kolom agar judul tidak terlalu mepet
+        if ($typeProcess === 'startup') {
+            $sheet->getColumnDimension('A')->setWidth(5);
+            $sheet->getColumnDimension('B')->setWidth(30);
+            $sheet->getColumnDimension('C')->setWidth(20);
         } else {
-            $sheet->getPageSetup()->setScale(80);
+            $sheet->getColumnDimension('A')->setWidth(5);
+            $sheet->getColumnDimension('B')->setWidth(15);
+            $sheet->getColumnDimension('C')->setWidth(12);
+            $sheet->getColumnDimension('D')->setWidth(15);
+            for ($col = 5; $col <= $globalMaxCols; $col++) {
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $sheet->getColumnDimension($colLetter)->setWidth(11);
+            }
         }
 
         $fileName = 'Report_' . $typeProcess . '_' . $process . '_' . date('Ymd_Hi') . '.xlsx';
