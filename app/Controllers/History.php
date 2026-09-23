@@ -25,9 +25,9 @@ class History extends BaseController
     protected $ForegoingModel;
     protected $EmpModel;
 
-    // BATAS DOUBLE AUTO-FIT PDF: Maks 10 Kolom
-    private const PDF_MAX_COLS_LANDSCAPE = 10;
-    private const PDF_MAX_ROWS_LANDSCAPE = 20;
+    // BATAS DOUBLE AUTO-FIT PDF
+    private const PDF_MAX_COLS_LANDSCAPE = 20;
+    private const PDF_MAX_ROWS_LANDSCAPE = 35;
     private const PDF_MAX_COLS_PORTRAIT = 6;
     private const PDF_MAX_ROWS_PORTRAIT = 35;
 
@@ -159,15 +159,15 @@ class History extends BaseController
     // JALUR PDF: Z-PATTERN (KIRI-KANAN LALU ATAS-BAWAH)
     // =========================================================================
 
-    private function resolveExportContext(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd): array
+   private function resolveExportContext(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd, string $model = '', string $lotno = '', string $machno = ''): array
     {
         $alldata = [];
         if ($typeProcess === 'production') {
-            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process);
+            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process, $model, $lotno, $machno);
         } elseif ($typeProcess === 'foregoing') {
-            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process);
+            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
         } else {
-            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process);
+            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
         }
 
         $prosesInfo = $this->getProsesInfo($process);
@@ -187,8 +187,11 @@ class History extends BaseController
         }
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
-        $machNo = $alldata[0]['machno'] ?? '';
-        return [$alldata, $namaProduk, $judulProses, $noDok, $machNo];
+        
+        // Mencegah error jika data kosong
+        $machNo = !empty($alldata) ? ($alldata[0]['machno'] ?? '') : '';
+        // FIX: Tambahkan $prosesInfo ke dalam return array
+        return [$alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo];
     }
 
     private function countHeaderRows(array $grid): int
@@ -354,8 +357,77 @@ class History extends BaseController
         return '<table class="table-cs">' . $thead . $tbody . '</table>';
     }
 
-    private function buildKopSuratHtml(string $namaProduk, string $judulProses, string $noDok, string $machNo): string
+    private function buildKopSuratHtml(string $namaProduk, string $judulProses, string $noDok, string $machNo, array $alldata, array $prosesInfo, string $typeProcess): string
     {
+        // 1. REVISI OTOMATIS: Set default 00 
+        $revisiValue = !empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0;
+        $revisi = str_pad($revisiValue, 2, '0', STR_PAD_LEFT);
+        
+        // 2. BERLAKU OTOMATIS: Cari tanggal pertama kali form ini dipakai di sistem!
+        $tglBerlaku = '-';
+        $timestamp = 0;
+        
+        if (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
+            // Jika suatu saat admin mengisi tanggal di Master Data, prioritaskan ini
+            $timestamp = strtotime($prosesInfo['berlaku']);
+        } else {
+            // JIKA KOSONG: Lakukan pencarian otomatis ke tabel transaksi
+            $db = \Config\Database::connect();
+            
+            // Cari data paling tua (pertama kali dibuat) untuk proses ini
+            $dataPertama = $db->table($typeProcess)
+                              ->where('process', $prosesInfo['process_code'] ?? '')
+                              ->orderBy('created_at', 'ASC')
+                              ->limit(1)
+                              ->get()
+                              ->getRowArray();
+                              
+            if (!empty($dataPertama['created_at'])) {
+                $timestamp = strtotime($dataPertama['created_at']);
+            }
+        }
+
+        // Render tanggal (Pastikan bukan tahun 1970)
+        if ($timestamp !== false && $timestamp > 0) {
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $timestamp) . ' ' . $bulanIndo[date('n', $timestamp) - 1] . ' ' . date('Y', $timestamp);
+        }
+
+        // 3. Logika Dinamisasi Kotak Tanda Tangan
+        $kotakTtdHtml = '';
+        if ($typeProcess === 'startup') {
+            // Desain 2 Kolom (QC & Production)
+            $kotakTtdHtml = '
+                <tr>
+                    <td style="width: 50%; text-align: center; padding: 2px;">QC</td>
+                    <td style="text-align: center; padding: 2px;">Production</td>
+                </tr>
+                <tr>
+                    <td style="height: 25px;"></td>
+                    <td style="height: 25px;"></td>
+                </tr>';
+        } else {
+            // Desain 1 Kolom (Checked) untuk Production & Foregoing
+            $namaApprover = '';
+            if (!empty($alldata)) {
+                $supervisor = $alldata[0]['supervisor'] ?? '';
+                $leader     = $alldata[0]['leader'] ?? '';
+                $foreman    = $alldata[0]['foreman'] ?? '';
+                
+                // Cari jabatan tertinggi yang sudah approve
+                if (!empty($supervisor)) { $namaApprover = $supervisor; } 
+                elseif (!empty($leader)) { $namaApprover = $leader; } 
+                elseif (!empty($foreman)) { $namaApprover = $foreman; }
+            }
+            
+            $ttd = $namaApprover !== '' ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
+            
+            $kotakTtdHtml = '
+                <tr><td colspan="2" style="text-align: center; vertical-align: middle; padding: 2px;">Checked</td></tr>
+                <tr><td colspan="2" style="text-align: center; height: 25px; vertical-align: bottom; padding: 2px;">' . $ttd . '</td></tr>';
+        }
+
+        // 4. Rakit HTML Utama
         return '
         <table style="width: 100%; border: none; font-size: 9px; table-layout: fixed; margin-bottom: 5px;">
             <tr>
@@ -369,10 +441,10 @@ class History extends BaseController
                 </td>
                 <td style="width: 25%; text-align: right; vertical-align: top; border: none; padding: 0;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 8px;" border="1">
-                        <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
-                        <tr><td style="text-align: left; padding: 2px;">Revisi</td><td style="text-align: left; padding: 2px;">: 12</td></tr>
-                        <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: 11 Mei 2026</td></tr>
-                        <tr><td colspan="2" style="text-align: center; height: 16px; vertical-align: middle; padding: 2px;">Checked</td></tr>
+                        <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok / No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
+                        <tr><td style="text-align: left; padding: 2px;">Revisi</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($revisi) . '</td></tr>
+                        <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($tglBerlaku) . '</td></tr>
+                        ' . $kotakTtdHtml . '
                     </table>
                 </td>
             </tr>
@@ -387,15 +459,17 @@ class History extends BaseController
     // JALUR EXCEL: FUNGSI KHUSUS EXCEL (JUGA BRUTAL CHUNKING)
     // =========================================================================
 
-    private function resolveExportContextExcel(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd): array
+    // Tambahkan $model, $lotno, $machno di ujung parameternya
+    private function resolveExportContextExcel(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd, string $model = '', string $lotno = '', string $machno = ''): array
     {
         $alldata = [];
+        // Pastikan variabel diteruskan ke getAll()
         if ($typeProcess === 'production') {
-            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process);
+            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process, $model, $lotno, $machno);
         } elseif ($typeProcess === 'foregoing') {
-            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process);
+            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
         } else {
-            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process);
+            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
         }
 
         $prosesInfo = $this->getProsesInfo($process);
@@ -415,7 +489,9 @@ class History extends BaseController
         }
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
-        $machNo = $alldata[0]['machno'] ?? '';
+        
+        // Mencegah error jika data Excel kosong
+        $machNo = !empty($alldata) ? ($alldata[0]['machno'] ?? '') : '';
         return [$alldata, $namaProduk, $judulProses, $noDok, $machNo];
     }
 
@@ -489,11 +565,38 @@ class History extends BaseController
         return $chunks ?: [[$identityColCount + 1, $totalCols]];
     }
 
-    private function insertKopSuratToSheetExcel(Worksheet $sheet, string $namaProduk, string $judulProses, string $noDok, string $machNo, int $identityColCount, array $chunksExcel, array $grid): int
+    private function insertKopSuratToSheetExcel(Worksheet $sheet, string $namaProduk, string $judulProses, string $noDok, string $machNo, int $identityColCount, array $chunksExcel, array $grid, array $alldata, array $prosesInfo, string $typeProcess): int
     {
         $idCol = max(1, $identityColCount);
         $idLetter = Coordinate::stringFromColumnIndex($idCol);
 
+        // 1. Otomatisasi Revisi & Tanggal Berlaku (Sama persis dengan PDF)
+        $revisiValue = !empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0;
+        $revisi = str_pad($revisiValue, 2, '0', STR_PAD_LEFT);
+        
+        $tglBerlaku = '-';
+        $timestamp = 0;
+        if (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
+            $timestamp = strtotime($prosesInfo['berlaku']);
+        } else {
+            $db = \Config\Database::connect();
+            $dataPertama = $db->table($typeProcess)
+                              ->where('process', $prosesInfo['process_code'] ?? '')
+                              ->orderBy('created_at', 'ASC')
+                              ->limit(1)
+                              ->get()
+                              ->getRowArray();
+            if (!empty($dataPertama['created_at'])) {
+                $timestamp = strtotime($dataPertama['created_at']);
+            }
+        }
+
+        if ($timestamp !== false && $timestamp > 0) {
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $timestamp) . ' ' . $bulanIndo[date('n', $timestamp) - 1] . ' ' . date('Y', $timestamp);
+        }
+
+        // 2. Render Identitas Perusahaan di Kiri
         $sheet->setCellValue('A1', "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
         $sheet->mergeCells("A1:{$idLetter}3");
         $sheet->getStyle('A1')->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
@@ -509,6 +612,7 @@ class History extends BaseController
             $hasTitleInGrid = true;
         }
 
+        // 3. Render Kotak Kontrol Dokumen di Kanan (Revisi, Berlaku, Checked)
         foreach ($chunksExcel as $chunk) {
             $sc = $chunk[0];
             $ec = $chunk[1];
@@ -521,7 +625,12 @@ class History extends BaseController
             $docStartLetter = Coordinate::stringFromColumnIndex($docColStart);
             $ecLetter = Coordinate::stringFromColumnIndex($ec);
 
-            $dokText = "No. Dok : " . $noDok . "\nRevisi : 12\nBerlaku : 11 Mei 2026\nChecked : ________";
+            // Teks kontrol dokumen dinamis
+            $dokText = "No. Dok / No. : " . $noDok . "\nRevisi : " . $revisi . "\nBerlaku : " . $tglBerlaku . "\nChecked : ________";
+            if ($typeProcess === 'startup') {
+                $dokText = "No. Dok / No. : " . $noDok . "\nRevisi : " . $revisi . "\nBerlaku : " . $tglBerlaku . "\nQC / Production";
+            }
+
             $sheet->setCellValue("{$docStartLetter}1", $dokText);
             if ($ec > $docColStart) {
                 $sheet->mergeCells("{$docStartLetter}1:{$ecLetter}3");
@@ -613,10 +722,21 @@ class History extends BaseController
         $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) : '';
         $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) : '';
 
-        [$alldata, $namaProduk, $judulProses, $noDok, $machNo] = $this->resolveExportContextExcel($typeProcess, $process, $device, $dateStart, $dateEnd);
+        // --- TAMBAHAN BARU: Tangkap parameter dari URL ---
+        $model = $this->request->getGet('model') ?? '';
+        $lotno = $this->request->getGet('lotno') ?? '';
+        $machno = $this->request->getGet('machno');
+        if ($machno === 'null' || $machno === null) { 
+            $machno = ''; 
+        }
 
+        // --- UPDATE BARIS INI: Kirim parameter komplit ke Helper ---
+       [$alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo] = $this->resolveExportContextExcel($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+
+        // BATAS GANTI KODE: Biarkan kode di bawah ini utuh jangan dihapus!
         $_SERVER['REQUEST_URI'] = 'exportExcel';
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+        // ... kode logika PHPSpreadsheet seterusnya ...
         try {
             $htmlString = view($viewPath, ['alldata' => $alldata]);
         } catch (\Exception $e) {
@@ -644,7 +764,7 @@ class History extends BaseController
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $startRow = $this->insertKopSuratToSheetExcel($sheet, $namaProduk, $judulProses, $noDok, $machNo, $identityColCount, $chunksExcel, $grid);
+       $startRow = $this->insertKopSuratToSheetExcel($sheet, $namaProduk, $judulProses, $noDok, $machNo, $identityColCount, $chunksExcel, $grid, $alldata, $prosesInfo, $typeProcess);
         $this->fillExcelFromGridExcel($grid, $sheet, $startRow, $headerRowCount, $identityColCount, $chunksExcel);
 
         $colWidths = [];
@@ -720,7 +840,14 @@ class History extends BaseController
         $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) . ' 00:00:00' : '';
         $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) . ' 23:59:59' : '';
 
-        [$alldata, $namaProduk, $judulProses, $noDok, $machNo] = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd);
+        // TANGKAP FILTER BARU
+        $model = $this->request->getGet('model') ?? '';
+        $lotno = $this->request->getGet('lotno') ?? '';
+        $machno = $this->request->getGet('machno');
+        if ($machno === 'null' || $machno === null) { $machno = ''; }
+
+        // KIRIM SELURUH PARAMETER
+        [$alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo] = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
         $_SERVER['REQUEST_URI'] = 'exportPDF';
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
@@ -748,10 +875,11 @@ class History extends BaseController
 
         $dataColsPerPage = max(1, $maxColsPerPage - $identityColCount);
         
-        $colChunks = $this->computeColumnChunks($grid['totalCols'], $identityColCount, $dataColsPerPage);
+       $colChunks = $this->computeColumnChunks($grid['totalCols'], $identityColCount, $dataColsPerPage);
         $rowChunks = $this->computeRowChunks($grid['totalRows'], $headerRowCount, $unsafeRowBoundaries, $maxRowsPerPage);
 
-        $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo);
+       // FIX: Kirimkan alldata, prosesinfo, dan typeProcess ke kop surat
+        $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $alldata, $prosesInfo, $typeProcess);
 
         $pagesHtml = '';
         $chunkCount = 0;

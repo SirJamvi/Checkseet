@@ -25,6 +25,15 @@ class ForegoingModel extends Model {
 
     public function addProses($data)
     {
+        // --- TAMBAHAN BARU: SNAPSHOT REVISI & BERLAKU ---
+        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+        
+        if ($prosesMaster) {
+            $data['par041'] =$prosesMaster['revisi'];
+            $data['par042'] =$prosesMaster['berlaku'];
+        }
+        // ------------------------------------------------
+
         $query = 'SELECT * FROM foregoing  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result=$this->query($query)->getRow();
 
@@ -49,10 +58,11 @@ class ForegoingModel extends Model {
     public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$device='',$process='',$model='',$lotno='',$machno='')
     {
         $machnoCondition = "";
-        if ($machno === "") {
-            $machnoCondition = "AND (s.machno LIKE '%%' OR s.machno IS NULL)";
+        if ($machno === "" || $machno === "ALL") {
+            // Jika kosong atau "ALL", abaikan filter
         } else {
-            $machnoCondition = "AND s.machno LIKE '%$machno%'";
+            // FIX: Gunakan = untuk pencarian mutlak
+            $machnoCondition = "AND s.machno = '$machno'";
         }
 
         $modelCondition = "";

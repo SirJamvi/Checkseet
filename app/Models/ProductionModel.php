@@ -93,11 +93,12 @@ class ProductionModel extends Model
     }
    public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$process='',$model='',$lotno='',$machno='')
     {
-        $machnoCondition = "";
-        if ($machno === "") {
-            $machnoCondition = "AND (`machno` LIKE '%%' OR `machno` IS NULL)";
+       $machnoCondition = "";
+        if (in_array($machno, ["", "ALL"])) {
+            // Jika kosong atau "ALL", biarkan, tidak difilter
         } else {
-            $machnoCondition = "AND `machno` LIKE '%$machno%'";
+            // FIX: Gunakan = untuk pencarian mutlak
+            $machnoCondition = "AND `machno` = '$machno'";
         }
 
         $modelCondition = "";
@@ -166,9 +167,19 @@ class ProductionModel extends Model
 
     public function addProses($data)
     {
+
+        // --- TAMBAHAN BARU: SNAPSHOT REVISI & BERLAKU ---
+        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+        
+        if ($prosesMaster) {
+            // Suntikkan ke par041 dan par042 yang kebetulan kosong
+            $data['par041'] =$prosesMaster['revisi'];
+            $data['par042'] =$prosesMaster['berlaku'];
+        }
+       
         $query = 'SELECT * FROM production  WHERE `number` = ' . $data["number"] . ' AND `par001` = ' . $data["par001"];
         $result = $this->query($query)->getRow();
-
+       
         if ($result == null) {
             $data["empid2"] = null;
             $data["group2"] = null;

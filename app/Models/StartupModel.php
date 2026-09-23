@@ -176,6 +176,15 @@ class StartupModel extends Model
     }
     public function addProses($data)
     {
+        // --- TAMBAHAN BARU: SNAPSHOT REVISI & BERLAKU ---
+        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+        
+        if ($prosesMaster) {
+            $data['par041'] =$prosesMaster['revisi'];
+            $data['par042'] =$prosesMaster['berlaku'];
+        }
+        // ------------------------------------------------
+
         $query = 'SELECT * FROM startup  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result = $this->query($query)->getRow();
 
@@ -214,8 +223,9 @@ class StartupModel extends Model
         if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'";
         }
         
-        // Karena datanya sudah kita cleansing, kita bisa pakai sama dengan (=) khusus machno
-        if ($machno !== '') {$sql .= " AND s.machno = '$machno'"; 
+        // Perbaikan: abaikan jika kosong ATAU bernilai "ALL"
+        if ($machno !== '' && $machno !== 'ALL') {
+            $sql .= " AND s.machno = '$machno'"; 
         }
 
         $sql .= " ORDER BY s.id";
