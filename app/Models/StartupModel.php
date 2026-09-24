@@ -6,71 +6,17 @@ use CodeIgniter\Model;
 
 class StartupModel extends Model
 {
-
     protected $table = 'startup';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'number',
-        'idcsheet',
-        'device',
-        'process',
-        'lotno',
-        'model',
-        'machno',
-        'empid',
-        'group',
-        'shift',
-        'par000',
-        'par001',
-        'par002',
-        'par003',
-        'par004',
-        'par005',
-        'par006',
-        'par007',
-        'par008',
-        'par009',
-        'par010',
-        'par011',
-        'par012',
-        'par013',
-        'par014',
-        'par015',
-        'par016',
-        'par017',
-        'par018',
-        'par019',
-        'par020',
-        'par021',
-        'par022',
-        'par023',
-        'par024',
-        'par025',
-        'par026',
-        'par027',
-        'par028',
-        'par029',
-        'par030',
-        'par031',
-        'par032',
-        'par033',
-        'par034',
-        'par035',
-        'par036',
-        'par037',
-        'par038',
-        'par039',
-        'par040',
-        'par041',
-        'par042',
-        'par043',
-        'par044',
-        'status',
-        'role',
-        'foreman',
-        'leader',
-        'supervisor',
-        'name'
+        'number','idcsheet','device','process','lotno','model','machno',
+        'empid','group','shift','par000','par001','par002','par003','par004',
+        'par005','par006','par007','par008','par009','par010','par011','par012',
+        'par013','par014','par015','par016','par017','par018','par019','par020',
+        'par021','par022','par023','par024','par025','par026','par027','par028',
+        'par029','par030','par031','par032','par033','par034','par035','par036',
+        'par037','par038','par039','par040','par041','par042','par043','par044',
+        'status','role','foreman','leader','supervisor','name'
     ];
 
     public function getCsheet($slug = false)
@@ -78,8 +24,7 @@ class StartupModel extends Model
         if ($slug == false) {
             return $this->findall();
         }
-
-        return $this->where(['slug' => $slug])->first();
+        return $this->where(['slug' =>$slug])->first();
     }
 
     public function getAllData()
@@ -89,101 +34,65 @@ class StartupModel extends Model
         INNER JOIN `proses` as p ON s.process=p.process_code 
         INNER JOIN `device` as d ON p.device=d.code
         WHERE `par000`='1'";
-        $data = $this->query($query);
-        return $data->getResultArray();
+        
+        return $this->query($query)->getResultArray();
     }
 
-    // update approval 
-    public function updateApproval($number, $name, $level)
+    // Perbaikan Logika Update Approval menggunakan Query Builder
+    public function updateApproval($number, $name,$level)
     {
-        // Get Data by Id
-        $query = "SELECT * FROM `startup` WHERE `number`=$number";
-        $data = $this->query($query)->getResultArray();
-        $query = "";
+        // Ambil data berdasarkan number
+        $data = $this->where('number',$number)->first();
+        
+        if (!$data) {
+            return false;
+        }
+
+        $updateData = [];
 
         // Level Foreman
-        if ($level == 14) {
-
-            $status = "Approve by Foreman";
-            $role = "foreman";
-
-            $query =
-                "UPDATE `startup` SET " .
-                "`status` = '" . $status . "' , " .
-                "`role` = '" . $role . "' , " .
-                "`foreman` = '" . $name . "' " .
-                "WHERE `number` = '" . $number . "'";
+        if ($level == 14) {$updateData['status'] = "Approve by Foreman";
+            $updateData['role'] = "foreman";
+            $updateData['foreman'] =$name;
         }
-        //Level Leader
-        else if ($level == 10) {
-            $role = "leader";
-
-            if (!$data[0]['foreman'] != null) {
-                $status = "Bypass Leader";
-                $query =
-                    "UPDATE `startup` SET " .
-                    "`status` = '" . $status . "' , " .
-                    "`role` = '" . $role . "' , " .
-                    "`foreman` = '" . $name . "' , " .
-                    "`leader` = '" . $name . "' " .
-                    "WHERE `number` = '" . $number . "'";
+        // Level Leader
+        else if ($level == 10) {$updateData['role'] = "leader";
+            
+            // Logika diperbaiki: Jika foreman kosong, Bypass. Jika ada, Approve.
+            if (empty($data['foreman'])) {$updateData['status'] = "Bypass Leader";
+                $updateData['foreman'] =$name;
+                $updateData['leader'] =$name;
             } else {
-                $status = "Approve Leader";
-                $query =
-                    "UPDATE `startup` SET " .
-                    "`status` = '" . $status . "' , " .
-                    "`role` = '" . $role . "' , " .
-                    "`leader` = '" . $name . "' " .
-                    "WHERE `number` = '" . $number . " ' ";
+                $updateData['status'] = "Approve Leader";
+                $updateData['leader'] =$name;
             }
         }
-        //Level diatas assisten supervisor
-        else if ($level <= 7) {
-            $role = "supervisor";
+        // Level diatas assisten supervisor
+        else if ($level <= 7) {$updateData['role'] = "supervisor";
+            $updateData['supervisor'] =$name;
 
-            if ($data[0]['leader'] != null) {
-                $status = "Approve Supervisor";
-                $query =
-                    "UPDATE `startup` SET " .
-                    "`status` = '" . $status . "' , " .
-                    "`role` = '" . $role . "' , " .
-                    "`supervisor` = '" . $name . "' " .
-                    "WHERE `number` = '" . $number . "'";
-            } else if ($data[0]['foreman'] != null) {
-                $status = "Bypass Supervisor";
-                $query =
-                    "UPDATE `startup` SET " .
-                    "`status` = '" . $status . "' , " .
-                    "`role` = '" . $role . "' , " .
-                    "`leader` = '" . $name . "' , " .
-                    "`supervisor` = '" . $name . "' " .
-                    "WHERE `number` = '" . $number . "'";
+            if (!empty($data['leader'])) {$updateData['status'] = "Approve Supervisor";
+            } else if (!empty($data['foreman'])) {$updateData['status'] = "Bypass Supervisor";
+                $updateData['leader'] =$name;
             } else {
-                $status = "Bypass Supervisor";
-                $query =
-                    "UPDATE `startup` SET " .
-                    "`status` = '" . $status . "' , " .
-                    "`role` = '" . $role . "' , " .
-                    "`foreman` = '" . $name . "' , " .
-                    "`leader` = '" . $name . "' , " .
-                    "`supervisor` = '" . $name . "' " .
-                    "WHERE `number` = '" . $number . "'";
+                $updateData['status'] = "Bypass Supervisor";
+                $updateData['foreman'] =$name;
+                $updateData['leader'] =$name;
             }
         }
 
-
-        return $this->query($query);
+        // Update semua data (par000 = 1 sampai 5) yang memiliki number tersebut
+        return $this->where('number', $number)->set($updateData)->update();
     }
+
     public function addProses($data)
     {
-        // --- TAMBAHAN BARU: SNAPSHOT REVISI & BERLAKU ---
         $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
         
         if ($prosesMaster) {
             $data['par041'] =$prosesMaster['revisi'];
             $data['par042'] =$prosesMaster['berlaku'];
         }
-        // ------------------------------------------------
 
         $query = 'SELECT * FROM startup  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result = $this->query($query)->getRow();
@@ -192,10 +101,11 @@ class StartupModel extends Model
             $this->insert($data);
             return "Add Startup";
         } else {
-            $this->update($result->id, $data);
+            $this->update($result->id,$data);
             return "Update Startup";
         }
     }
+
     public function getLatestId()
     {
         $query = "SELECT `number` FROM startup ORDER BY `number` DESC LIMIT 1 ";
@@ -205,9 +115,12 @@ class StartupModel extends Model
         }
         return $result->getRow()->number ?? 0;
     }
-   public function getAll($dateStart='1970-1-1',$dateEnd='2070-1-1',$device='',$process='',$model='',$lotno='',$machno='')
+
+    public function getAll($dateStart='1970-01-01', $dateEnd='2070-01-01',$device='', $process='',$model='', $lotno='',$machno='')
     {
-        // Gunakan Query Dinamis: Filter hanya dipasang JIKA ada isinya
+        // Perbaikan Batas Waktu agar data hari ini masuk
+        $dateStart = empty($dateStart) ? '1970-01-01 00:00:00' : $dateStart . ' 00:00:00';$dateEnd = empty($dateEnd) ? '2070-01-01 23:59:59' :$dateEnd . ' 23:59:59';
+
         $sql = "SELECT DISTINCT *
                 FROM `startup` as s
                 INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code 
@@ -217,21 +130,13 @@ class StartupModel extends Model
                 AND s.device LIKE '%$device%' 
                 AND s.process LIKE '%$process%'";
 
-        if ($model !== '') {$sql .= " AND s.model LIKE '%$model%'";
-        }
-        
-        if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'";
-        }
-        
-        // Perbaikan: abaikan jika kosong ATAU bernilai "ALL"
-        if ($machno !== '' && $machno !== 'ALL') {
-            $sql .= " AND s.machno = '$machno'"; 
-        }
+        if ($model !== '') {$sql .= " AND s.model LIKE '%$model%'"; }
+        if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'"; }
+        if ($machno !== '' && $machno !== 'ALL') {$sql .= " AND s.machno = '$machno'"; }
 
         $sql .= " ORDER BY s.id";
         
-        $data = $this->query($sql);
-        return $data->getResultArray();
+        return $this->query($sql)->getResultArray();
     }
 
     public function deleteByNumber($number)
@@ -245,22 +150,30 @@ class StartupModel extends Model
         }
     }
 
-    public function getApprovalData($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $device = '', $process = '')
+    // Perbaikan utama untuk Approval Form
+    public function getApprovalData($dateStart = '',$dateEnd = '', $device = '',$process = '')
     {
+        // Pasang Default jika kosong
+        $dateStart = empty($dateStart) ? date('Y-m-d', strtotime('-1 month')) : $dateStart;
+        $dateEnd = empty($dateEnd) ? date('Y-m-d') : $dateEnd;
+
+        // Perbaikan Batas Waktu (Jam ditambahkan otomatis)
+        $start =$dateStart . ' 00:00:00';
+        $end =$dateEnd . ' 23:59:59';
+
         $query = "SELECT DISTINCT *
         FROM `startup` as s
         INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code 
         INNER JOIN (SELECT code, name as device_name FROM device ) as d ON p.device=d.code
         WHERE 
-        s.created_at >= '$dateStart' AND 
-        s.created_at <= '$dateEnd' AND
+        s.created_at >= '$start' AND 
+        s.created_at <= '$end' AND
         s.device LIKE '%$device%' AND
-        `process` LIKE '%$process%' AND
+        s.process LIKE '%$process%' AND
         s.par000 = 1
-        ORDER BY created_at DESC";
+        ORDER BY s.created_at DESC";
 
-        $data = $this->query($query);
-        return $data->getResultArray();
+        return $this->query($query)->getResultArray();
     }
 
     public function getByNumber($number)
@@ -271,7 +184,7 @@ class StartupModel extends Model
         WHERE 
         `number` = $number 
         ORDER BY `par000`";
-        $data = $this->query($query);
-        return $data->getResultArray();
+        
+        return $this->query($query)->getResultArray();
     }
 }

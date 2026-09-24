@@ -119,11 +119,29 @@ class Input extends BaseController
         return view("/layout/form/production/".$process,$data);
     }
 
+    // Perbaikan pada Input.php (Controller)
     public function formStandard($process)
     {
-        $words = preg_split('/-/', $process, -1, PREG_SPLIT_NO_EMPTY);
+        if(empty($process) || $process === 'null' || $process === '-'){
+             return "Data catatan tidak ditemukan atau proses tidak valid.";
+        }
 
-        return view('/layout/'.$words[0].'/note/'.$process);
+        $words = preg_split('/-/', $process, -1, PREG_SPLIT_NO_EMPTY);
+        
+        // Pengecekan keamanan: pastikan array memiliki minimal 1 elemen
+        if(count($words) == 0){
+             return "Format proses tidak valid.";
+        }
+
+        $viewPath = '/layout/'.$words[0].'/note/'.$process;
+        
+        // Cek apakah file view secara fisik ada sebelum di-render (opsional tapi disarankan)
+        // Jika tidak ada, kembalikan pesan kosong daripada CRITICAL error
+        try {
+            return view($viewPath);
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "Catatan belum tersedia untuk mesin/proses ini.";
+        }
     }
 
     
