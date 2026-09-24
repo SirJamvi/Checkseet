@@ -7,55 +7,75 @@ use Dompdf\Options;
 
 class PdfGenerator
 {
-    private const PDF_MAX_COLS_LANDSCAPE = 20;
-    private const PDF_MAX_ROWS_LANDSCAPE = 35;
-    private const PDF_MAX_COLS_PORTRAIT = 6;
-    private const PDF_MAX_ROWS_PORTRAIT = 35;
-
     public function generate(string $htmlString, array $context)
     {
         extract($context); 
-        // Variabel yg tersedia: $alldata, $namaProduk, $judulProses, $noDok, $machNo, $prosesInfo, $typeProcess, $process
 
-        $tableElement = $this->extractTableElement($htmlString, 'table1');
-        if ($tableElement === null) die("Error: <table id=\"table1\"> tidak ditemukan di view!");
+        $doc = new \DOMDocument(); 
+        libxml_use_internal_errors(true); 
+        $doc->loadHTML('<?xml encoding="UTF-8">' . $htmlString); 
+        libxml_clear_errors();
+        
+        $xpath = new \DOMXPath($doc); 
+        $table = $xpath->query("//table[@id='table1']")->item(0);
+        
+        if ($table === null) die("Error: <table id=\"table1\"> tidak ditemukan di view!");
 
-        $grid = $this->buildGrid($tableElement);
+        if ($typeProcess === 'startup') {
+            $this->injectApprover($doc, $table, $namaApprover, $alldata ?? []);
+        }
+
+        $grid = $this->buildGrid($table);
         $headerRowCount = $this->countHeaderRows($grid);
-        $identityColCount = $this->countIdentityColumns($grid, $headerRowCount);
-        
-        $unsafeRowBoundaries = $this->computeUnsafeRowBoundaries($grid, $headerRowCount);
-        $orientation = $this->decideOrientation($grid['totalCols']);
-        
-        $maxColsPerPage = $orientation === 'landscape' ? self::PDF_MAX_COLS_LANDSCAPE : self::PDF_MAX_COLS_PORTRAIT;
-        $maxRowsPerPage = $orientation === 'landscape' ? self::PDF_MAX_ROWS_LANDSCAPE : self::PDF_MAX_ROWS_PORTRAIT;
+        $identityColCount = ($typeProcess === 'startup') ? 3 : $this->countIdentityColumns($grid, $headerRowCount);
 
-        $dataColsPerPage = max(1, $maxColsPerPage - $identityColCount);
+        // =========================================================
+        // HORIZONTAL PAGINATION (Membagi tabel ke samping)
+        // =========================================================
+        $maxColsPerPage = 7;
+        $colChunks = [];
         
-        $colChunks = $this->computeColumnChunks($grid['totalCols'], $identityColCount, $dataColsPerPage);
-        $rowChunks = $this->computeRowChunks($grid['totalRows'], $headerRowCount, $unsafeRowBoundaries, $maxRowsPerPage);
+        if ($typeProcess === 'startup') {
+            $totalDataCols = max(7, $grid['totalCols'] - $identityColCount); 
+            $start = $identityColCount + 1;
+            $endTotal = $identityColCount + $totalDataCols;
+            
+            while ($start <= $endTotal) {
+                $end = min($endTotal, $start + $maxColsPerPage - 1);
+                $colChunks[] = [$start, $end];
+                $start = $end + 1;
+            }
+        } else {
+            $colChunks = [[$identityColCount + 1, $grid['totalCols']]];
+        }
 
-        $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $alldata, $prosesInfo, $typeProcess);
+        $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
 
         $pagesHtml = '';
         $chunkCount = 0;
         
-        foreach ($rowChunks as $j => $rRange) {
-            foreach ($colChunks as $i => $cRange) {
-                $pageBreakStyle = ($chunkCount > 0) ? ' style="page-break-before: always;"' : '';
-                $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $rRange);
-                $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
-                $chunkCount++;
-            }
+        foreach ($colChunks as $cRange) {
+            $pageBreakStyle = ($chunkCount > 0) ? ' style="page-break-before: always;"' : '';
+            $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $typeProcess);
+            $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
+            $chunkCount++;
         }
 
+        $cssScale = ($typeProcess === 'startup') ? '
+            @page { size: A4 landscape; margin-top: 100px; margin-bottom: 10px; margin-left: 20px; margin-right: 20px; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 6.5px; }
+            header { position: fixed; top: -90px; left: 0px; right: 0px; height: 80px; }
+            table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 2px !important; text-align: center; vertical-align: middle; word-wrap: break-word; overflow: hidden;}
+        ' : '
+            @page { size: A4 landscape; margin-top: 130px; margin-bottom: 30px; margin-left: 30px; margin-right: 30px; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 7.5px; }
+            header { position: fixed; top: -115px; left: 0px; right: 0px; height: 110px; }
+            table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 4px !important; text-align: center; vertical-align: middle; word-wrap: break-word; overflow: hidden;}
+        ';
+
         $customCSS = '
-        <style>
-            @page { size: A4 ' . $orientation . '; margin-top: 140px; margin-bottom: 30px; margin-left: 30px; margin-right: 30px; }
-            body { font-family: Arial, Helvetica, sans-serif; font-size: 7px; }
-            header { position: fixed; top: -125px; left: 0px; right: 0px; height: 110px; }
-            table.table-cs { width: 100%; border-collapse: collapse; border: 1px solid black; }
-            table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 3px !important; text-align: center; vertical-align: middle; word-wrap: break-word; }
+        <style>' . $cssScale . '
+            table.table-cs { width: 100%; border-collapse: collapse; border: 1px solid black; table-layout: fixed; }
             th { background-color: #f8f9fa; font-weight: bold; }
             tr { page-break-inside: avoid; }
         </style>';
@@ -69,7 +89,7 @@ class PdfGenerator
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($finalHtml);
-        $dompdf->setPaper('A4', $orientation);
+        $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
         $fileName = 'Report_' . strtoupper($process) . '_' . date('Ymd_Hi') . '.pdf';
@@ -77,19 +97,77 @@ class PdfGenerator
         exit();
     }
 
-    // --- HELPER PDF ---
-    private function extractTableElement(string $html, string $id = 'table1'): ?\DOMElement {
-        $doc = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $doc->loadHTML('<?xml encoding="UTF-8">' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($doc);
-        $nodes = $xpath->query("//table[@id='{$id}']");
-        return $nodes->length > 0 ? $nodes->item(0) : null;
+    private function injectApprover(\DOMDocument $doc, \DOMElement $table, string $namaApprover, array $alldata): void {
+        $trs = iterator_to_array($table->getElementsByTagName('tr'));
+        foreach ($trs as $tr) {
+            $firstCell = $tr->getElementsByTagName('td')->item(0) ?? $tr->getElementsByTagName('th')->item(0);
+            if ($firstCell) {
+                $txt = strtolower(trim($firstCell->textContent));
+                if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false) {
+                    $tr->parentNode->removeChild($tr);
+                }
+            }
+        }
+
+        $trs = $table->getElementsByTagName('tr');
+        $noteTr = null;
+        foreach ($trs as $tr) {
+            if (stripos($tr->textContent, 'Note') !== false) {
+                $noteTr = $tr; break;
+            }
+        }
+
+        if ($noteTr) {
+            $getVal = function($item, $keys) {
+                if (is_array($item)) {
+                    foreach($keys as $k) if (isset($item[$k]) && $item[$k] !== '') return $item[$k];
+                } elseif (is_object($item)) {
+                    foreach($keys as $k) if (isset($item->$k) && $item->$k !== '') return $item->$k;
+                }
+                return '-';
+            };
+
+            $dataColsCount = max(7, count($alldata));
+
+            $opTr = $doc->createElement('tr');
+            $tdOpLbl = $doc->createElement('td', 'Operator');
+            $tdOpLbl->setAttribute('colspan', '3');
+            $opTr->appendChild($tdOpLbl);
+
+            for ($i = 0; $i < $dataColsCount; $i++) {
+                if (isset($alldata[$i])) {
+                    $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by']);
+                    $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
+                } else {
+                    $tdOpData = $doc->createElement('td', '-');
+                }
+                $opTr->appendChild($tdOpData);
+            }
+            $noteTr->parentNode->insertBefore($opTr, $noteTr);
+
+            $appTr = $doc->createElement('tr');
+            $approverText = ($namaApprover !== '' && $namaApprover !== '-') ? $namaApprover : '-';
+            $tdAppLbl = $doc->createElement('td', htmlspecialchars("Approved by: " . $approverText));
+            $tdAppLbl->setAttribute('colspan', '3');
+            $appTr->appendChild($tdAppLbl);
+
+            for ($i = 0; $i < $dataColsCount; $i++) {
+                if (isset($alldata[$i])) {
+                    $status = strtolower(trim($getVal($alldata[$i], ['status_approval', 'status', 'is_approved', 'approval'])));
+                    $isApp = in_array($status, ['approved', 'ok', 'yes', 'v', '1', 'true', 'done']);
+                    $ceklis = $isApp ? 'V' : '-';
+                    $tdAppData = $doc->createElement('td', $ceklis);
+                } else {
+                    $tdAppData = $doc->createElement('td', '-');
+                }
+                $appTr->appendChild($tdAppData);
+            }
+            $noteTr->parentNode->insertBefore($appTr, $noteTr);
+        }
     }
 
     private function buildGrid(\DOMElement $table): array {
-        $occupied = []; $origins = []; $isHeaderMap = []; $currentRow = 1; $maxCol = 0;
+        $occupied = []; $origins = []; $currentRow = 1; $maxCol = 0;
         foreach ($table->getElementsByTagName('tr') as $tr) {
             $col = 1;
             foreach ($tr->childNodes as $cell) {
@@ -99,21 +177,16 @@ class PdfGenerator
                 while (!empty($occupied[$currentRow][$col])) $col++;
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
-                $isHeader = $tag === 'th';
-                $value = preg_replace('/\s+/u', ' ', trim($cell->textContent));
-                $origins[$currentRow][$col] = ['value' => $value, 'isHeader' => $isHeader, 'rowspan' => $rowspan, 'colspan' => $colspan];
+                $origins[$currentRow][$col] = ['value' => $cell->textContent, 'isHeader' => $tag === 'th', 'colspan' => $colspan, 'rowspan' => $rowspan];
                 for ($r = $currentRow; $r < $currentRow + $rowspan; $r++) {
-                    for ($c = $col; $c < $col + $colspan; $c++) { $occupied[$r][$c] = true; $isHeaderMap[$r][$c] = $isHeader; }
+                    for ($c = $col; $c < $col + $colspan; $c++) { $occupied[$r][$c] = true; }
                 }
-                $maxCol = max($maxCol, $col + $colspan - 1);
-                $col += $colspan;
+                $maxCol = max($maxCol, $col + $colspan - 1); $col += $colspan;
             }
             $currentRow++;
         }
-        return ['origins' => $origins, 'isHeaderMap' => $isHeaderMap, 'totalRows' => $currentRow - 1, 'totalCols' => $maxCol];
+        return ['origins' => $origins, 'occupied' => $occupied, 'totalRows' => $currentRow - 1, 'totalCols' => $maxCol];
     }
-
-    private function decideOrientation(int $totalCols): string { return $totalCols <= 12 ? 'portrait' : 'landscape'; }
 
     private function countHeaderRows(array $grid): int {
         $r = 1;
@@ -127,7 +200,7 @@ class PdfGenerator
         return 1;
     }
 
-    private function findRealHeaderStartRow(array $grid, int $headerRowCount): int {
+    private function countIdentityColumns(array $grid, int $headerRowCount): int {
         for ($r = 1; $r <= $headerRowCount; $r++) {
             $rowOrigins = $grid['origins'][$r] ?? [];
             if (count($rowOrigins) === 1 && reset($rowOrigins)['colspan'] === $grid['totalCols']) continue;
@@ -136,69 +209,41 @@ class PdfGenerator
         return 1;
     }
 
-    private function countIdentityColumns(array $grid, int $headerRowCount): int {
-        $startRow = $this->findRealHeaderStartRow($grid, $headerRowCount);
-        $requiredSpan = $headerRowCount - $startRow + 1;
-        $count = 0; $c = 1;
-        while ($c <= $grid['totalCols']) {
-            $origin = $grid['origins'][$startRow][$c] ?? null;
-            if ($origin === null || $origin['rowspan'] !== $requiredSpan) break;
-            $count += $origin['colspan']; $c += $origin['colspan'];
-        }
-        return $count;
-    }
-
-    private function computeUnsafeRowBoundaries(array $grid, int $headerRowCount): array {
-        $unsafe = [];
-        for ($c = 1; $c <= $grid['totalCols']; $c++) {
-            for ($r = $headerRowCount + 1; $r <= $grid['totalRows']; $r++) {
-                $cell = $grid['origins'][$r][$c] ?? null;
-                if ($cell !== null && $cell['rowspan'] > 1) {
-                    for ($p = $r; $p < $r + $cell['rowspan'] - 1; $p++) $unsafe[$p] = true; 
-                }
-            }
-        }
-        return $unsafe;
-    }
-
-    private function computeColumnChunks(int $totalCols, int $identityColCount, int $dataColsPerPage): array {
-        $chunks = []; $start = $identityColCount + 1;
-        while ($start <= $totalCols) {
-            $end = min($totalCols, $start + $dataColsPerPage - 1);
-            $chunks[] = [$start, $end];
-            $start = $end + 1;
-        }
-        return $chunks ?: [[$identityColCount + 1, $totalCols]];
-    }
-
-    private function computeRowChunks(int $totalRows, int $headerRowCount, array $unsafeRowBoundaries, int $maxRowsPerPage): array {
-        $chunks = []; $start = $headerRowCount + 1;
-        if ($start > $totalRows) return [[$start, $start]];
-        while ($start <= $totalRows) {
-            $target = min($totalRows, $start + $maxRowsPerPage - 1); $end = $target;
-            while ($end > $start && !empty($unsafeRowBoundaries[$end])) $end--;
-            if ($end === $start && !empty($unsafeRowBoundaries[$end])) {
-                $end = $target; while ($end < $totalRows && !empty($unsafeRowBoundaries[$end])) $end++;
-            }
-            $chunks[] = [$start, $end]; $start = $end + 1;
-        }
-        return $chunks;
-    }
-
-    private function build2DChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, array $rowRange): string {
-        [$startCol, $endCol] = $colRange; [$startRow, $endRow] = $rowRange;
-        $colMap = [];
-        for ($c = 1; $c <= $identityColCount; $c++) $colMap[$c] = count($colMap) + 1;
-        for ($c = $startCol; $c <= $endCol; $c++) $colMap[$c] = count($colMap) + 1;
-        $totalOriginalCols = $grid['totalCols'];
+    private function build2DChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, string $typeProcess): string {
+        [$startCol, $endCol] = $colRange;
         
-        $renderRow = function (int $r) use ($grid, $colMap, $totalOriginalCols): string {
-            $html = '<tr>'; 
-            if (isset($grid['origins'][$r])) {
-                foreach ($grid['origins'][$r] as $c => $origin) {
+        $validCols = [];
+        for ($c = 1; $c <= $identityColCount; $c++) $validCols[$c] = true;
+        for ($c = $startCol; $c <= $endCol; $c++) $validCols[$c] = true;
+        
+        $colgroup = '<colgroup>';
+        for ($c = 1; $c <= $identityColCount; $c++) {
+            if ($typeProcess === 'startup') {
+                if ($c === 1) $w = '4%'; elseif ($c === 2) $w = '38%'; else $w = '26%'; 
+            } else {
+                if ($c === 1) $w = '3%'; else $w = '11%';
+            }
+            $colgroup .= '<col style="width: ' . $w . ';">';
+        }
+        for ($c = $startCol; $c <= $endCol; $c++) {
+            $w = ($typeProcess === 'startup') ? '10%' : '6%';
+            $colgroup .= '<col style="width: ' . $w . ';">';
+        }
+        $colgroup .= '</colgroup>';
+
+        $html = '<table class="table-cs">' . $colgroup . '<thead>';
+
+        for ($r = 1; $r <= $grid['totalRows']; $r++) {
+            if ($r == $headerRowCount + 1) $html .= '</thead><tbody>';
+            $html .= '<tr>'; 
+            
+            foreach ($validCols as $c => $dummy) {
+                if (isset($grid['origins'][$r][$c])) {
+                    $origin = $grid['origins'][$r][$c];
                     $actualColspan = 0;
-                    $overlapEndCol = min($c + $origin['colspan'] - 1, $totalOriginalCols);
-                    for($i = $c; $i <= $overlapEndCol; $i++) if (isset($colMap[$i])) $actualColspan++;
+                    $maxC = min($c + $origin['colspan'] - 1, $grid['totalCols']);
+                    for ($i = $c; $i <= $maxC; $i++) { if (isset($validCols[$i])) $actualColspan++; }
+                    
                     if ($actualColspan > 0) {
                         $tag = $origin['isHeader'] ? 'th' : 'td';
                         $rowspanAttr = $origin['rowspan'] > 1 ? ' rowspan="' . $origin['rowspan'] . '"' : '';
@@ -206,51 +251,49 @@ class PdfGenerator
                         $value = htmlspecialchars($origin['value'], ENT_QUOTES, 'UTF-8');
                         $html .= "<{$tag}{$rowspanAttr}{$colspanAttr}>{$value}</{$tag}>";
                     }
+                } else if (empty($grid['occupied'][$r][$c])) {
+                    $isHeader = false;
+                    if (isset($grid['origins'][$r])) {
+                        foreach ($grid['origins'][$r] as $org) { if ($org['isHeader']) { $isHeader = true; break; } }
+                    }
+                    if ($isHeader) {
+                        $html .= '<th></th>';
+                    } else {
+                        $html .= '<td>-</td>';
+                    }
                 }
             }
-            $html .= '</tr>'; return $html;
-        };
-
-        $thead = '<thead>'; for ($r = 1; $r <= $headerRowCount; $r++) $thead .= $renderRow($r); $thead .= '</thead>';
-        $tbody = '<tbody>'; for ($r = $startRow; $r <= $endRow; $r++) if ($r <= $grid['totalRows']) $tbody .= $renderRow($r); $tbody .= '</tbody>';
-        return '<table class="table-cs">' . $thead . $tbody . '</table>';
+            $html .= '</tr>';
+        }
+        $html .= '</tbody></table>';
+        return $html;
     }
 
-    private function buildKopSuratHtml(string $namaProduk, string $judulProses, string $noDok, string $machNo, array $alldata, array $prosesInfo, string $typeProcess): string {
-        $revisi = str_pad(!empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0, 2, '0', STR_PAD_LEFT);
-        $tglBerlaku = '-'; $timestamp = 0;
+    private function buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess): string {
+        $kotakTtdHtml = "";
         
-        if (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
-            $timestamp = strtotime($prosesInfo['berlaku']);
+        if ($typeProcess === "startup") {
+            $kotakTtdHtml = '
+                <tr><td style="width: 50%; text-align: center; padding: 2px;">QC</td><td style="text-align: center; padding: 2px;">Production</td></tr>
+                <tr><td style="height: 25px;"></td><td style="height: 25px;"></td></tr>';
         } else {
-            $db = \Config\Database::connect();
-            $dataPertama = $db->table($typeProcess)->where('process', $prosesInfo['process_code'] ?? '')->orderBy('created_at', 'ASC')->limit(1)->get()->getRowArray();
-            if (!empty($dataPertama['created_at'])) $timestamp = strtotime($dataPertama['created_at']);
-        }
-        if ($timestamp !== false && $timestamp > 0) {
-            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            $tglBerlaku = date('d', $timestamp) . ' ' . $bulanIndo[date('n', $timestamp) - 1] . ' ' . date('Y', $timestamp);
-        }
-
-        $kotakTtdHtml = '';
-        if ($typeProcess === 'startup') {
-            $kotakTtdHtml = '<tr><td style="width: 50%; text-align: center; padding: 2px;">QC</td><td style="text-align: center; padding: 2px;">Production</td></tr><tr><td style="height: 25px;"></td><td style="height: 25px;"></td></tr>';
-        } else {
-            $namaApprover = '';
-            if (!empty($alldata)) {
-                if (!empty($alldata[0]['supervisor'])) $namaApprover = $alldata[0]['supervisor']; 
-                elseif (!empty($alldata[0]['leader'])) $namaApprover = $alldata[0]['leader']; 
-                elseif (!empty($alldata[0]['foreman'])) $namaApprover = $alldata[0]['foreman'];
-            }
-            $ttd = $namaApprover !== '' ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
-            $kotakTtdHtml = '<tr><td colspan="2" style="text-align: center; vertical-align: middle; padding: 2px;">Checked</td></tr><tr><td colspan="2" style="text-align: center; height: 25px; vertical-align: bottom; padding: 2px;">' . $ttd . '</td></tr>';
+            $ttd = $namaApprover !== "" ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
+            $kotakTtdHtml = '
+                <tr><td colspan="2" style="text-align: center; vertical-align: middle; padding: 2px;">Checked</td></tr>
+                <tr><td colspan="2" style="text-align: center; height: 25px; vertical-align: bottom; padding: 2px;">' . $ttd . '</td></tr>';
         }
 
         return '
         <table style="width: 100%; border: none; font-size: 9px; table-layout: fixed; margin-bottom: 5px;">
             <tr>
-                <td style="width: 35%; vertical-align: top; border: none; padding: 0;">PT. FOXCONN TECHNOLOGIES INDONESIA<br>Production Engineering Department<br>Process Engineering Section<br><b>' . htmlspecialchars($namaProduk) . '</b></td>
-                <td style="width: 40%; text-align: center; vertical-align: top; border: none; padding: 0;"><b style="font-size: 12px; text-decoration: underline;">' . htmlspecialchars($judulProses) . '</b><br><span style="font-size: 10px;">(' . htmlspecialchars($namaProduk) . ')</span></td>
+                <td style="width: 35%; vertical-align: top; border: none; padding: 0;">
+                    PT. FOXCONN TECHNOLOGIES INDONESIA<br>Production Engineering Department<br>Process Engineering Section<br>
+                    <b>' . htmlspecialchars($namaProduk) . '</b>
+                </td>
+                <td style="width: 40%; text-align: center; vertical-align: top; border: none; padding: 0;">
+                    <b style="font-size: 12px; text-decoration: underline;">' . htmlspecialchars($judulProses) . '</b><br>
+                    <span style="font-size: 10px;">(' . htmlspecialchars($namaProduk) . ')</span>
+                </td>
                 <td style="width: 25%; text-align: right; vertical-align: top; border: none; padding: 0;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 8px;" border="1">
                         <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok / No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
@@ -261,6 +304,8 @@ class PdfGenerator
                 </td>
             </tr>
         </table>
-        <div style="font-size: 9px; text-align: left;">MACHINE No &nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($machNo) . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AG Paste Type &nbsp;&nbsp;: </div>';
+        <div style="font-size: 9px; text-align: left;">
+            MACHINE No &nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($machNo) . '
+        </div>';
     }
 }

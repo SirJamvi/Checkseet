@@ -54,7 +54,7 @@ class History extends BaseController
     }
 
     // =========================================================================
-    // DATA RESOLVER UNTUK GENERATOR EXPORT
+    // DAPUR DATA: RESOLVER UNTUK GENERATOR EXPORT (KOP SURAT & CLEANER)
     // =========================================================================
 
     private function getProsesInfo(string $processCode): array
@@ -73,6 +73,7 @@ class History extends BaseController
 
     private function resolveExportContext(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd, string $model = '', string $lotno = '', string $machno = ''): array
     {
+        // 1. Tarik Data Mentah
         $alldata = [];
         if ($typeProcess === 'production') {
             $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process, $model, $lotno, $machno);
@@ -82,12 +83,48 @@ class History extends BaseController
             $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
         }
 
+        // 2. PROSES LOGIKA KOP SURAT & DATA CLEANER
+        $latestDate = 0;
+        $namaApprover = '';
+
+        foreach ($alldata as &$row) {
+            // A. Cari Tanggal Terbaru (Dinamis Berlaku)
+            $rowDate = 0;
+            if (!empty($row['created_at'])) {
+                $rowDate = strtotime($row['created_at']);
+            } elseif (!empty($row['date'])) {
+                $rowDate = strtotime($row['date']);
+            }
+            
+            if ($rowDate > $latestDate) {
+                $latestDate = $rowDate;
+            }
+
+            // B. Cari Nama Approver (Prioritas tertinggi ke rendah)
+            if ($namaApprover === '') {
+                if (!empty($row['supervisor'])) { $namaApprover = $row['supervisor']; }
+                elseif (!empty($row['leader'])) { $namaApprover = $row['leader']; }
+                elseif (!empty($row['foreman'])) { $namaApprover = $row['foreman']; }
+            }
+
+            // C. Data Cleaner (Sapu bersih data kosong/null menjadi "-")
+            foreach ($row as $key => $value) {
+                // Cegah angka 0 agar tidak ikut terhapus
+                if ($value === null || trim((string)$value) === '') {
+                    $row[$key] = '-';
+                }
+            }
+        }
+        unset($row); // Wajib! Memutus referensi memori agar array aman
+
+        // 3. Olah Format Kop Surat
         $prosesInfo = $this->getProsesInfo($process);
         $deviceInfo = $this->getDeviceInfo($device);
 
         $namaProduk = $deviceInfo['name'] ?? strtoupper($device);
         $namaProsesRaw = $prosesInfo['name'] ?? strtoupper($process);
 
+        // Standarisasi Judul Proses (Startup tetap dikasih judul sesuai format)
         if ($typeProcess === 'production') {
             $cleanName = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
             $judulProses = 'Production Process Control Sheet ' . $cleanName;
@@ -99,10 +136,24 @@ class History extends BaseController
         }
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
-        $machNo = !empty($alldata) ? ($alldata[0]['machno'] ?? '') : '';
+        $revisi = str_pad(!empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0, 2, '0', STR_PAD_LEFT);
         
-        // Return context komplit untuk dilempar ke Library
-        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'prosesInfo', 'typeProcess', 'process');
+        // Ambil Machine No (Pastikan tidak tertimpa strip "-")
+        $machNo = $machno !== '' ? $machno : ((!empty($alldata) && $alldata[0]['machno'] !== '-') ? $alldata[0]['machno'] : '');
+
+        // Format Tanggal Berlaku
+        $tglBerlaku = '-';
+        if ($latestDate > 0) {
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $latestDate) . ' ' . $bulanIndo[date('n', $latestDate) - 1] . ' ' . date('Y', $latestDate);
+        } elseif (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
+            $ts = strtotime($prosesInfo['berlaku']);
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
+        }
+
+        // Return Data Super Matang ke Library
+        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
     }
 
     // =========================================================================
@@ -124,19 +175,17 @@ class History extends BaseController
         $lotno = $this->request->getGet('lotno') ?? '';
         $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        // 1. Ambil Data Context
         $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
-        // 2. Render View HTML Tabel
         $_SERVER['REQUEST_URI'] = 'exportExcel';
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
         try { 
             $htmlString = view($viewPath, ['alldata' => $context['alldata']]); 
         } catch (\Exception $e) { 
-            die("Error: File View tidak ditemukan!"); 
+            // KITA BUKA KEDOK ERROR ASLINYA DI SINI
+            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
         }
 
-        // 3. Panggil Mandor Excel (Library)
         $excelGen = new ExcelGenerator();
         $excelGen->generate($htmlString, $context);
     }
@@ -156,19 +205,17 @@ class History extends BaseController
         $lotno = $this->request->getGet('lotno') ?? '';
         $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        // 1. Ambil Data Context
         $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
-        // 2. Render View HTML Tabel
         $_SERVER['REQUEST_URI'] = 'exportPDF';
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
         try {
             $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
         } catch (\Exception $e) {
-            die("Error: File View " . $viewPath . " tidak ditemukan!");
+            // KITA BUKA KEDOK ERROR ASLINYA DI SINI
+            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
         }
 
-        // 3. Panggil Mandor PDF (Library)
         $pdfGen = new PdfGenerator();
         $pdfGen->generate($htmlString, $context);
     }
