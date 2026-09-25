@@ -17,8 +17,12 @@ class ExcelGenerator
     {
         extract($context); 
 
-        $tableElement = $this->extractTableElement($htmlString, 'table1', $typeProcess, $namaApprover, $alldata ?? []);
-        if ($tableElement === null) die("Error: table1 tidak ditemukan");
+        // 1. Ekstrak Elemen Tabel & Dapatkan Jumlah Kolom Parameter Statis Secara Dinamis
+        $extractResult = $this->extractTableElement($htmlString, 'table1', $typeProcess, $namaApprover, $alldata ?? []);
+        if ($extractResult === null) die("Error: table1 tidak ditemukan atau format tidak sesuai.");
+        
+        $tableElement = $extractResult['table'];
+        $identityCols = $extractResult['identityCols']; 
 
         $grid = $this->buildGrid($tableElement);
         $headerRowCount = $this->countHeaderRows($grid);
@@ -28,27 +32,37 @@ class ExcelGenerator
         $sheet = $spreadsheet->getActiveSheet();
         
         $tableStartRow = 6; 
+        // ini der kalau mau ubah posisi tabel, ubah $tableStartRow di atas dan sesuaikan setRowsToRepeatAtTopByStartAndEnd di bawah
+        $PER_PAGE = 13; 
+        $dataColsCount = count($alldata ?? []);
         
-        // 1. Tulis Kop Surat & Tabel
+        // 2. Tulis Kop Surat & Tabel
         if ($typeProcess === 'startup') {
-             $dataColsCount = count($alldata ?? []);
-             $paddedDataCols = max(15, ceil($dataColsCount / 15) * 15);
-             $this->insertKopSuratHorizontal($sheet, 2, $paddedDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
-             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols);
-             $lastColIndex = $paddedDataCols + 4; 
+             $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
+             $paddedDataCols = $totalPages * $PER_PAGE;
+             
+             $this->insertKopSuratHorizontal($sheet, 2, $paddedDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE);
+             
+             // Meneruskan $dataColsCount agar sistem tahu kapan harus melebarkan colspan header
+             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols, $identityCols, $dataColsCount);
+             
+             $lastColIndex = $identityCols + 1 + $paddedDataCols; 
         } else {
-             $totalDataCols = $grid['totalCols'] - 3;
-             $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
-             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols);
+             $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
+             $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols);
+             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, $dataColsCount);
+             
              $lastColIndex = $grid['totalCols'] + 1;
         }
 
         $lastRow = $tableStartRow + $grid['totalRows'] - 1;
         $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex); 
         
+        // Bingkai Seluruh Tabel
         $tableRange = "B{$tableStartRow}:{$lastColLetter}{$lastRow}";
         $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
+        // 3. Setup Halaman Print
         $sheet->getSheetView()->setView(SheetView::SHEETVIEW_PAGE_BREAK_PREVIEW);
         $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
@@ -56,26 +70,21 @@ class ExcelGenerator
         $headerEndRow = $tableStartRow + $headerRowCount - 1;
         $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $headerEndRow);
         
-        // =========================================================================
-        // LOGIKA KUNCI HALAMAN (SUDAH DIKOREKSI 100%)
-        // =========================================================================
+        $lastIdentityColLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
+
         if ($typeProcess === 'startup') {
             $sheet->getPageSetup()->setFitToPage(true);
-            $sheet->getPageSetup()->setFitToWidth(0);  // BEBAS ke samping mengikuti Page Break
-            $sheet->getPageSetup()->setFitToHeight(1); // KUNCI MATI vertikal jadi 1 Halaman
-            $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('B', 'D'); 
+            $sheet->getPageSetup()->setFitToWidth(0); 
+            $sheet->getPageSetup()->setFitToHeight(1); 
+            $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('B', $lastIdentityColLetter); 
 
-            $dataColsCount = count($alldata ?? []);
-            $totalPages = max(1, ceil($dataColsCount / 15));
+            $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
             for ($p = 1; $p < $totalPages; $p++) {
-                $breakColIndex = 4 + ($p * 15) + 1; 
+                $breakColIndex = ($identityCols + 1) + ($p * $PER_PAGE) + 1; 
                 $breakColLetter = Coordinate::stringFromColumnIndex($breakColIndex);
-                // Garis potong biru dipasang tiap kelipatan 15 hari
                 $sheet->setBreak($breakColLetter . '1', \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_COLUMN);
             }
-            
             $sheet->getPageSetup()->setPrintArea("A1:{$lastColLetter}{$lastRow}");
-
         } else {
             $sheet->getPageSetup()->setFitToPage(true);
             $sheet->getPageSetup()->setFitToWidth(1);
@@ -86,28 +95,16 @@ class ExcelGenerator
         $sheet->getPageMargins()->setTop(0.4)->setRight(0.3)->setLeft(0.3)->setBottom(0.4);
         $sheet->getColumnDimension('A')->setWidth(2); 
 
-        // =========================================================================
-        // LEBAR KOLOM (Disesuaikan agar Fit to Height tidak menyisakan ruang kosong)
-        // =========================================================================
-        if ($typeProcess === 'startup') {
-            $sheet->getColumnDimension('B')->setWidth(6);     
-            $sheet->getColumnDimension('C')->setWidth(45);    
-            $sheet->getColumnDimension('D')->setWidth(24);    
-            
-            for ($col = 5; $col <= $lastColIndex; $col++) {
-                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(12); 
-            }
-        } else {
-            $sheet->getColumnDimension('B')->setWidth(5);   
-            $sheet->getColumnDimension('C')->setWidth(15);  
-            $sheet->getColumnDimension('D')->setWidth(15);  
-            $sheet->getColumnDimension('E')->setWidth(15);  
-            for ($col = 6; $col <= $lastColIndex; $col++) {
-                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(10);
-            }
+        // 4. Atur Lebar Kolom
+        $sheet->getColumnDimension('B')->setWidth(5);     
+        for ($col = 3; $col <= $identityCols + 1; $col++) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(20); 
+        }
+        for ($col = $identityCols + 2; $col <= $lastColIndex; $col++) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(12);
         }
 
-        $fileName = 'Report_' . strtoupper($process) . '_' . date('Ymd_Hi') . '.xlsx';
+        $fileName = 'Report_' . strtoupper($process ?? 'DOC') . '_' . date('Ymd_Hi') . '.xlsx';
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $fileName . '"');
         header('Cache-Control: max-age=0');
@@ -117,18 +114,32 @@ class ExcelGenerator
         exit();
     }
 
-    private function extractTableElement(string $html, string $id, string $typeProcess, string $namaApprover, array $alldata): ?\DOMElement {
+    private function extractTableElement(string $html, string $id, string $typeProcess, string $namaApprover, array $alldata): ?array {
         $doc = new \DOMDocument(); libxml_use_internal_errors(true); $doc->loadHTML('<?xml encoding="UTF-8">' . $html); libxml_clear_errors();
         $xpath = new \DOMXPath($doc); $nodes = $xpath->query("//table[@id='{$id}']");
         $table = $nodes->length > 0 ? $nodes->item(0) : null;
+        if (!$table) return null;
 
-        if ($table && $typeProcess === 'startup') {
-            $trs = iterator_to_array($table->getElementsByTagName('tr'));
+        $maxExistingCols = 0;
+        $trs = iterator_to_array($table->getElementsByTagName('tr'));
+        foreach ($trs as $tr) {
+            $cols = 0;
+            foreach ($tr->childNodes as $td) {
+                if ($td instanceof \DOMElement && in_array(strtolower($td->tagName), ['td','th'])) {
+                    $cols += (int)($td->getAttribute('colspan') ?: 1);
+                }
+            }
+            if ($cols > $maxExistingCols) $maxExistingCols = $cols;
+        }
+        $dataColsCount = count($alldata);
+        $identityCols = max(1, $maxExistingCols - $dataColsCount);
+
+        if ($typeProcess === 'startup') {
             foreach ($trs as $tr) {
                 $firstCell = $tr->getElementsByTagName('td')->item(0) ?? $tr->getElementsByTagName('th')->item(0);
                 if ($firstCell) {
                     $txt = strtolower(trim($firstCell->textContent));
-                    if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false) {
+                    if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'approved by') !== false) {
                         $tr->parentNode->removeChild($tr);
                     }
                 }
@@ -152,18 +163,18 @@ class ExcelGenerator
                     return '-';
                 };
 
-                $dataColsCount = count($alldata);
-                $totalPages = max(1, ceil($dataColsCount / 15));
-                $targetCols = $totalPages * 15;
+                $PER_PAGE = 14;
+                $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
+                $targetCols = $totalPages * $PER_PAGE;
 
                 $opTr = $doc->createElement('tr');
                 $tdOpLbl = $doc->createElement('td', 'Operator');
-                $tdOpLbl->setAttribute('colspan', '3');
+                $tdOpLbl->setAttribute('colspan', (string)$identityCols);
                 $opTr->appendChild($tdOpLbl);
 
                 for ($i = 0; $i < $targetCols; $i++) {
                     if (isset($alldata[$i])) {
-                        $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by']);
+                        $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by', 'name']);
                         $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
                     } else {
                         $tdOpData = $doc->createElement('td', '-');
@@ -173,17 +184,27 @@ class ExcelGenerator
                 $noteTr->parentNode->insertBefore($opTr, $noteTr);
 
                 $appTr = $doc->createElement('tr');
-                $approverText = ($namaApprover !== '' && $namaApprover !== '-') ? $namaApprover : '-';
-                $tdAppLbl = $doc->createElement('td', htmlspecialchars("Approved by: " . $approverText));
-                $tdAppLbl->setAttribute('colspan', '3');
+                $tdAppLbl = $doc->createElement('td', 'Approved by');
+                $tdAppLbl->setAttribute('colspan', (string)$identityCols);
                 $appTr->appendChild($tdAppLbl);
 
                 for ($i = 0; $i < $targetCols; $i++) {
                     if (isset($alldata[$i])) {
                         $status = strtolower(trim($getVal($alldata[$i], ['status_approval', 'status', 'is_approved', 'approval'])));
-                        $isApp = in_array($status, ['approved', 'ok', 'yes', 'v', '1', 'true', 'done']);
-                        $ceklis = $isApp ? 'V' : '-';
-                        $tdAppData = $doc->createElement('td', $ceklis);
+                        if (strpos($status, 'approve') !== false || strpos($status, 'bypass') !== false) {
+                            $spv = $getVal($alldata[$i], ['supervisor']);
+                            $ldr = $getVal($alldata[$i], ['leader']);
+                            $frm = $getVal($alldata[$i], ['foreman']);
+                            $appText = 'Approved';
+                            if ($spv !== '-') $appText = trim($spv) . "\n(Supervisor)";
+                            elseif ($ldr !== '-') $appText = trim($ldr) . "\n(Leader)";
+                            elseif ($frm !== '-') $appText = trim($frm) . "\n(Foreman)";
+
+                            $tdAppData = $doc->createElement('td');
+                            $tdAppData->appendChild($doc->createTextNode($appText));
+                        } else {
+                            $tdAppData = $doc->createElement('td', '-');
+                        }
                     } else {
                         $tdAppData = $doc->createElement('td', '-');
                     }
@@ -192,7 +213,7 @@ class ExcelGenerator
                 $noteTr->parentNode->insertBefore($appTr, $noteTr);
             }
         }
-        return $table;
+        return ['table' => $table, 'identityCols' => $identityCols];
     }
 
     private function buildGrid(\DOMElement $table): array {
@@ -229,31 +250,33 @@ class ExcelGenerator
         return 1;
     }
 
-    private function insertKopSuratHorizontal($sheet, int $startRow, int $targetDataCols, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess) {
+    private function insertKopSuratHorizontal($sheet, int $startRow, int $targetDataCols, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess, int $identityCols, int $PER_PAGE) {
         $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
 
+        $lastIdentityLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
+
         $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
-        $sheet->mergeCells("B{$r1}:D{$r3}");
+        $sheet->mergeCells("B{$r1}:{$lastIdentityLetter}{$r3}");
         $sheet->getStyle("B{$r1}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
         $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize(10);
         
         $sheet->setCellValue("B{$r4}", "MACHINE No : " . $machNo);
-        $sheet->mergeCells("B{$r4}:D{$r4}");
+        $sheet->mergeCells("B{$r4}:{$lastIdentityLetter}{$r4}");
         $sheet->getStyle("B{$r4}")->getFont()->setBold(true)->setSize(10);
-        $sheet->getStyle("B{$r1}:D{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle("B{$r1}:{$lastIdentityLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         if ($typeProcess === 'startup') {
-            $totalPages = max(1, ceil($targetDataCols / 15));
+            $totalPages = max(1, ceil($targetDataCols / $PER_PAGE));
             for ($p = 0; $p < $totalPages; $p++) {
-                $chunkStartCol = 5 + ($p * 15);
-                $chunkEndCol = $chunkStartCol + 14; 
-                $docStartCol = $chunkEndCol - 2;
+                $chunkStartCol = ($identityCols + 2) + ($p * $PER_PAGE);
+                $chunkEndCol = $chunkStartCol + $PER_PAGE - 1; 
+                $docStartCol = $chunkEndCol - 2; 
 
                 $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
             }
         } else {
-            $chunkStartCol = 5;
-            $chunkEndCol = 4 + $targetDataCols; 
+            $chunkStartCol = $identityCols + 2;
+            $chunkEndCol = $chunkStartCol + $targetDataCols - 1; 
             $docStartCol = max($chunkStartCol + 1, $chunkEndCol - 2);
             $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
         }
@@ -301,11 +324,12 @@ class ExcelGenerator
         $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
     }
 
-    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols) {
+    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols, int $identityCols, int $dataColsCount) {
         $occupied = $grid['occupied'] ?? [];
         $origins = $grid['origins'] ?? [];
         $maxRow = $grid['totalRows'];
-        $identityCols = 3; 
+        
+        $targetGridCols = $identityCols + $targetDataCols;
 
         for ($r = 1; $r <= $maxRow; $r++) {
             $targetRow = $startRow + $r - 1;
@@ -322,7 +346,21 @@ class ExcelGenerator
                     
                     $colspan = $cell['colspan'] ?? 1; 
                     $rowspan = $cell['rowspan'] ?? 1;
-                    $actualColspan = min($colspan, $maxGridCols - $c + 1);
+
+                    // FIX UTAMA: Lebarkan header (seperti "Hasil Start Up Check") agar menutupi penuh 14 kolom
+                    if ($colspan > 1 && $dataColsCount > 0 && ($c + $colspan - 1) === ($identityCols + $dataColsCount)) {
+                        $oldColspan = $colspan;
+                        $colspan += ($targetDataCols - $dataColsCount);
+                        
+                        // Tandai area yang baru saja dilebarkan sebagai 'terisi' agar tidak tertimpa strip (-)
+                        for ($rr = $r; $rr < $r + $rowspan; $rr++) {
+                            for ($cc = $c + $oldColspan; $cc < $c + $colspan; $cc++) {
+                                $occupied[$rr][$cc] = true;
+                            }
+                        }
+                    }
+
+                    $actualColspan = min($colspan, $targetGridCols - $c + 1);
 
                     if ($actualColspan > 1 || $rowspan > 1) {
                         $endColLetter = Coordinate::stringFromColumnIndex($targetCol + $actualColspan - 1);
@@ -340,35 +378,10 @@ class ExcelGenerator
                 }
             }
 
-            for ($c = 1; $c <= $maxGridCols; $c++) {
+            // FIX UTAMA: Looping pengisian sel kosong (-) disederhanakan dan dijamin sejajar dengan colspan
+            for ($c = 1; $c <= $targetGridCols; $c++) {
                 if (empty($occupied[$r][$c])) {
                     $targetCol = $c + 1; 
-                    $cellLetter = Coordinate::stringFromColumnIndex($targetCol);
-                    $coord = $cellLetter . $targetRow;
-                    
-                    $isHeaderRow = false;
-                    if (isset($origins[$r])) {
-                        foreach ($origins[$r] as $origin) {
-                            if ($origin['isHeader']) { $isHeaderRow = true; break; }
-                        }
-                    }
-
-                    if ($isHeaderRow) {
-                        $sheet->getStyle($coord)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
-                        $sheet->setCellValue($coord, ''); 
-                    } else {
-                        $sheet->setCellValue($coord, '-');
-                    }
-                    
-                    $style = $sheet->getStyle($coord);
-                    $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                }
-            }
-            
-            $actualDataCols = $maxGridCols - $identityCols;
-            if ($actualDataCols < $targetDataCols) {
-                for ($c = $actualDataCols + 1; $c <= $targetDataCols; $c++) {
-                    $targetCol = $identityCols + $c + 1; 
                     $cellLetter = Coordinate::stringFromColumnIndex($targetCol);
                     $coord = $cellLetter . $targetRow;
                     

@@ -100,22 +100,27 @@ class History extends BaseController
                 $latestDate = $rowDate;
             }
 
-            // B. Cari Nama Approver (Prioritas tertinggi ke rendah)
+            // B. Cari Nama Approver (Prioritas tertinggi ke rendah) - DIUBAH DENGAN FORMAT JABATAN
             if ($namaApprover === '') {
-                if (!empty($row['supervisor'])) { $namaApprover = $row['supervisor']; }
-                elseif (!empty($row['leader'])) { $namaApprover = $row['leader']; }
-                elseif (!empty($row['foreman'])) { $namaApprover = $row['foreman']; }
+                if (!empty($row['supervisor']) && $row['supervisor'] !== '-') { 
+                    $namaApprover = trim($row['supervisor']) . "\n(Supervisor)"; 
+                }
+                elseif (!empty($row['leader']) && $row['leader'] !== '-') { 
+                    $namaApprover = trim($row['leader']) . "\n(Leader)"; 
+                }
+                elseif (!empty($row['foreman']) && $row['foreman'] !== '-') { 
+                    $namaApprover = trim($row['foreman']) . "\n(Foreman)"; 
+                }
             }
 
             // C. Data Cleaner (Sapu bersih data kosong/null menjadi "-")
             foreach ($row as $key => $value) {
-                // Cegah angka 0 agar tidak ikut terhapus
                 if ($value === null || trim((string)$value) === '') {
                     $row[$key] = '-';
                 }
             }
         }
-        unset($row); // Wajib! Memutus referensi memori agar array aman
+        unset($row);
 
         // 3. Olah Format Kop Surat
         $prosesInfo = $this->getProsesInfo($process);
@@ -124,7 +129,6 @@ class History extends BaseController
         $namaProduk = $deviceInfo['name'] ?? strtoupper($device);
         $namaProsesRaw = $prosesInfo['name'] ?? strtoupper($process);
 
-        // Standarisasi Judul Proses (Startup tetap dikasih judul sesuai format)
         if ($typeProcess === 'production') {
             $cleanName = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
             $judulProses = 'Production Process Control Sheet ' . $cleanName;
@@ -137,11 +141,8 @@ class History extends BaseController
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
         $revisi = str_pad(!empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0, 2, '0', STR_PAD_LEFT);
-        
-        // Ambil Machine No (Pastikan tidak tertimpa strip "-")
         $machNo = $machno !== '' ? $machno : ((!empty($alldata) && $alldata[0]['machno'] !== '-') ? $alldata[0]['machno'] : '');
 
-        // Format Tanggal Berlaku
         $tglBerlaku = '-';
         if ($latestDate > 0) {
             $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -152,12 +153,11 @@ class History extends BaseController
             $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
         }
 
-        // Return Data Super Matang ke Library
         return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
     }
 
     // =========================================================================
-    // EXPORT METHOD INTI (HANYA MEMANGGIL LIBRARY PENGHASIL FILE)
+    // EXPORT METHOD INTI
     // =========================================================================
 
     public function exportExcel()
@@ -182,7 +182,6 @@ class History extends BaseController
         try { 
             $htmlString = view($viewPath, ['alldata' => $context['alldata']]); 
         } catch (\Exception $e) { 
-            // KITA BUKA KEDOK ERROR ASLINYA DI SINI
             die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
         }
 
@@ -212,7 +211,6 @@ class History extends BaseController
         try {
             $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
         } catch (\Exception $e) {
-            // KITA BUKA KEDOK ERROR ASLINYA DI SINI
             die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
         }
 
