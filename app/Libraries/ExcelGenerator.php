@@ -33,7 +33,7 @@ class ExcelGenerator
         
         $tableStartRow = 6; 
         // ini der kalau mau ubah posisi tabel, ubah $tableStartRow di atas dan sesuaikan setRowsToRepeatAtTopByStartAndEnd di bawah
-        $PER_PAGE = 13; 
+        $PER_PAGE = 11; 
         $dataColsCount = count($alldata ?? []);
         
         // 2. Tulis Kop Surat & Tabel
