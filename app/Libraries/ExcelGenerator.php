@@ -24,22 +24,27 @@ class ExcelGenerator
         $headerRowCount = $this->countHeaderRows($grid);
 
         $spreadsheet = new Spreadsheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(11);
         $sheet = $spreadsheet->getActiveSheet();
         
-        // =====================================================================
-        // RULES BARU: Grid mengikuti total kolom aktual (minimal 10 untuk Startup)
-        // =====================================================================
-        $maxGridCols = $grid['totalCols']; 
-        $kopRightCol = $maxGridCols + 1; // +1 Offset Kolom A
-        
-        $kopStartRow = 2;
-        $this->insertKopSuratVertical($sheet, $kopStartRow, $kopRightCol, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
-        
         $tableStartRow = 6; 
-        $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $maxGridCols);
+        
+        // 1. Tulis Kop Surat & Tabel
+        if ($typeProcess === 'startup') {
+             $dataColsCount = count($alldata ?? []);
+             $paddedDataCols = max(15, ceil($dataColsCount / 15) * 15);
+             $this->insertKopSuratHorizontal($sheet, 2, $paddedDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols);
+             $lastColIndex = $paddedDataCols + 4; 
+        } else {
+             $totalDataCols = $grid['totalCols'] - 3;
+             $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols);
+             $lastColIndex = $grid['totalCols'] + 1;
+        }
 
         $lastRow = $tableStartRow + $grid['totalRows'] - 1;
-        $lastColLetter = Coordinate::stringFromColumnIndex($kopRightCol); 
+        $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex); 
         
         $tableRange = "B{$tableStartRow}:{$lastColLetter}{$lastRow}";
         $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
@@ -49,39 +54,56 @@ class ExcelGenerator
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
         
         $headerEndRow = $tableStartRow + $headerRowCount - 1;
-        $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(2, $headerEndRow);
+        $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $headerEndRow);
         
+        // =========================================================================
+        // LOGIKA KUNCI HALAMAN (SUDAH DIKOREKSI 100%)
+        // =========================================================================
         if ($typeProcess === 'startup') {
-            // RULES BARU STARTUP: Baris dikunci 1 page, kolom BEBAS ke samping
             $sheet->getPageSetup()->setFitToPage(true);
-            $sheet->getPageSetup()->setFitToWidth(0); 
-            $sheet->getPageSetup()->setFitToHeight(1); 
-            // Ulangi identitas di setiap page baru
-            $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('B', 'D');
+            $sheet->getPageSetup()->setFitToWidth(0);  // BEBAS ke samping mengikuti Page Break
+            $sheet->getPageSetup()->setFitToHeight(1); // KUNCI MATI vertikal jadi 1 Halaman
+            $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('B', 'D'); 
+
+            $dataColsCount = count($alldata ?? []);
+            $totalPages = max(1, ceil($dataColsCount / 15));
+            for ($p = 1; $p < $totalPages; $p++) {
+                $breakColIndex = 4 + ($p * 15) + 1; 
+                $breakColLetter = Coordinate::stringFromColumnIndex($breakColIndex);
+                // Garis potong biru dipasang tiap kelipatan 15 hari
+                $sheet->setBreak($breakColLetter . '1', \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_COLUMN);
+            }
+            
+            $sheet->getPageSetup()->setPrintArea("A1:{$lastColLetter}{$lastRow}");
+
         } else {
             $sheet->getPageSetup()->setFitToPage(true);
             $sheet->getPageSetup()->setFitToWidth(1);
             $sheet->getPageSetup()->setFitToHeight(0); 
+            $sheet->getPageSetup()->setPrintArea("A1:{$lastColLetter}{$lastRow}");
         }
         
         $sheet->getPageMargins()->setTop(0.4)->setRight(0.3)->setLeft(0.3)->setBottom(0.4);
-
         $sheet->getColumnDimension('A')->setWidth(2); 
 
+        // =========================================================================
+        // LEBAR KOLOM (Disesuaikan agar Fit to Height tidak menyisakan ruang kosong)
+        // =========================================================================
         if ($typeProcess === 'startup') {
-            $sheet->getColumnDimension('B')->setWidth(4);   
-            $sheet->getColumnDimension('C')->setWidth(35);  
-            $sheet->getColumnDimension('D')->setWidth(20);  
-            for ($col = 5; $col <= $kopRightCol; $col++) {
-                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(11);
+            $sheet->getColumnDimension('B')->setWidth(6);     
+            $sheet->getColumnDimension('C')->setWidth(45);    
+            $sheet->getColumnDimension('D')->setWidth(24);    
+            
+            for ($col = 5; $col <= $lastColIndex; $col++) {
+                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(12); 
             }
         } else {
-            $sheet->getColumnDimension('B')->setWidth(4);   
-            $sheet->getColumnDimension('C')->setWidth(13);  
-            $sheet->getColumnDimension('D')->setWidth(13);  
-            $sheet->getColumnDimension('E')->setWidth(13);  
-            for ($col = 6; $col <= $kopRightCol; $col++) {
-                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(7.5);
+            $sheet->getColumnDimension('B')->setWidth(5);   
+            $sheet->getColumnDimension('C')->setWidth(15);  
+            $sheet->getColumnDimension('D')->setWidth(15);  
+            $sheet->getColumnDimension('E')->setWidth(15);  
+            for ($col = 6; $col <= $lastColIndex; $col++) {
+                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(10);
             }
         }
 
@@ -130,15 +152,16 @@ class ExcelGenerator
                     return '-';
                 };
 
-                // Kunci minimal 7 hari, tapi kalau data > 7, ikuti jumlah data
-                $dataColsCount = max(7, count($alldata));
+                $dataColsCount = count($alldata);
+                $totalPages = max(1, ceil($dataColsCount / 15));
+                $targetCols = $totalPages * 15;
 
                 $opTr = $doc->createElement('tr');
                 $tdOpLbl = $doc->createElement('td', 'Operator');
                 $tdOpLbl->setAttribute('colspan', '3');
                 $opTr->appendChild($tdOpLbl);
 
-                for ($i = 0; $i < $dataColsCount; $i++) {
+                for ($i = 0; $i < $targetCols; $i++) {
                     if (isset($alldata[$i])) {
                         $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by']);
                         $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
@@ -155,7 +178,7 @@ class ExcelGenerator
                 $tdAppLbl->setAttribute('colspan', '3');
                 $appTr->appendChild($tdAppLbl);
 
-                for ($i = 0; $i < $dataColsCount; $i++) {
+                for ($i = 0; $i < $targetCols; $i++) {
                     if (isset($alldata[$i])) {
                         $status = strtolower(trim($getVal($alldata[$i], ['status_approval', 'status', 'is_approved', 'approval'])));
                         $isApp = in_array($status, ['approved', 'ok', 'yes', 'v', '1', 'true', 'done']);
@@ -206,42 +229,56 @@ class ExcelGenerator
         return 1;
     }
 
-    private function insertKopSuratVertical($sheet, int $startRow, int $kopRightCol, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess) {
+    private function insertKopSuratHorizontal($sheet, int $startRow, int $targetDataCols, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess) {
         $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
-
-        $docEndCol = $kopRightCol; 
-        $docStartCol = max(5, $docEndCol - 2); 
-        
-        $docStartLetter = Coordinate::stringFromColumnIndex($docStartCol);
-        $docMidLetter   = Coordinate::stringFromColumnIndex($docStartCol + 1);
-        $docEndLetter   = Coordinate::stringFromColumnIndex($docEndCol);
 
         $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
         $sheet->mergeCells("B{$r1}:D{$r3}");
         $sheet->getStyle("B{$r1}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
-        $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize(9);
+        $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize(10);
         
         $sheet->setCellValue("B{$r4}", "MACHINE No : " . $machNo);
-        $midEndLetter = Coordinate::stringFromColumnIndex(max(4, $docStartCol - 1));
-        $sheet->mergeCells("B{$r4}:{$midEndLetter}{$r4}");
-        $sheet->getStyle("B{$r4}")->getFont()->setBold(true)->setSize(9);
+        $sheet->mergeCells("B{$r4}:D{$r4}");
+        $sheet->getStyle("B{$r4}")->getFont()->setBold(true)->setSize(10);
+        $sheet->getStyle("B{$r1}:D{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        if ($typeProcess === 'startup') {
+            $totalPages = max(1, ceil($targetDataCols / 15));
+            for ($p = 0; $p < $totalPages; $p++) {
+                $chunkStartCol = 5 + ($p * 15);
+                $chunkEndCol = $chunkStartCol + 14; 
+                $docStartCol = $chunkEndCol - 2;
+
+                $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+            }
+        } else {
+            $chunkStartCol = 5;
+            $chunkEndCol = 4 + $targetDataCols; 
+            $docStartCol = max($chunkStartCol + 1, $chunkEndCol - 2);
+            $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+        }
+
+        for ($r = $r1; $r <= $r3; $r++) $sheet->getRowDimension($r)->setRowHeight(20);
+        $sheet->getRowDimension($r4)->setRowHeight(38); 
+    }
+
+    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess) {
+        $docStartLetter = Coordinate::stringFromColumnIndex($docStartCol);
+        $docMidLetter   = Coordinate::stringFromColumnIndex($docStartCol + 1);
+        $docEndLetter   = Coordinate::stringFromColumnIndex($chunkEndCol);
 
         $sheet->setCellValue("{$docStartLetter}{$r1}", "No. Dok / No."); $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $noDok);
         $sheet->setCellValue("{$docStartLetter}{$r2}", "Revisi");       $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $revisi);
         $sheet->setCellValue("{$docStartLetter}{$r3}", "Berlaku");      $sheet->setCellValue("{$docMidLetter}{$r3}", ": " . $tglBerlaku);
 
-        if ($docEndCol > $docStartCol + 1) {
-            $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
-            $sheet->mergeCells("{$docMidLetter}{$r2}:{$docEndLetter}{$r2}");
-            $sheet->mergeCells("{$docMidLetter}{$r3}:{$docEndLetter}{$r3}");
-        }
+        $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
+        $sheet->mergeCells("{$docMidLetter}{$r2}:{$docEndLetter}{$r2}");
+        $sheet->mergeCells("{$docMidLetter}{$r3}:{$docEndLetter}{$r3}");
 
         if ($typeProcess === 'startup') {
             $sheet->setCellValue("{$docStartLetter}{$r4}", "QC"); 
             $sheet->setCellValue("{$docMidLetter}{$r4}", "Production");
-            if ($docEndCol > $docStartCol + 1) {
-                $sheet->mergeCells("{$docMidLetter}{$r4}:{$docEndLetter}{$r4}");
-            }
+            $sheet->mergeCells("{$docMidLetter}{$r4}:{$docEndLetter}{$r4}");
             $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
         } else {
             $ttdText = $namaApprover !== '' ? "Checked\n\nApproved by: " . $namaApprover : "Checked";
@@ -250,26 +287,25 @@ class ExcelGenerator
             $sheet->getStyle("{$docStartLetter}{$r4}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         }
 
-        $boxStyle = $sheet->getStyle("{$docStartLetter}{$r1}:{$docEndLetter}{$r4}");
-        $boxStyle->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-        $boxStyle->getFont()->setSize(9);
         $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r3}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
-        if ($docStartCol > 5) {
-            $sheet->setCellValue("E{$r1}", $judulProses . "\n(" . $namaProduk . ")");
-            $sheet->mergeCells("E{$r1}:{$midEndLetter}{$r3}");
-            $sheet->getStyle("E{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-            $sheet->getStyle("E{$r1}")->getFont()->setBold(true)->setSize(11)->setUnderline(true);
-        }
-
-        for ($r = $r1; $r <= $r3; $r++) $sheet->getRowDimension($r)->setRowHeight(18);
-        $sheet->getRowDimension($r4)->setRowHeight(35); 
+        $midEndLetter = Coordinate::stringFromColumnIndex(max($chunkStartCol, $docStartCol - 1));
+        $centerStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
+        
+        $sheet->setCellValue("{$centerStartLetter}{$r1}", $judulProses . "\n(" . $namaProduk . ")");
+        $sheet->mergeCells("{$centerStartLetter}{$r1}:{$midEndLetter}{$r3}");
+        $sheet->getStyle("{$centerStartLetter}{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize(12)->setUnderline(true);
+        $sheet->mergeCells("{$centerStartLetter}{$r4}:{$midEndLetter}{$r4}");
+        
+        $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
     }
 
-    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols) {
+    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols) {
         $occupied = $grid['occupied'] ?? [];
         $origins = $grid['origins'] ?? [];
         $maxRow = $grid['totalRows'];
+        $identityCols = 3; 
 
         for ($r = 1; $r <= $maxRow; $r++) {
             $targetRow = $startRow + $r - 1;
@@ -326,6 +362,30 @@ class ExcelGenerator
                     
                     $style = $sheet->getStyle($coord);
                     $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                }
+            }
+            
+            $actualDataCols = $maxGridCols - $identityCols;
+            if ($actualDataCols < $targetDataCols) {
+                for ($c = $actualDataCols + 1; $c <= $targetDataCols; $c++) {
+                    $targetCol = $identityCols + $c + 1; 
+                    $cellLetter = Coordinate::stringFromColumnIndex($targetCol);
+                    $coord = $cellLetter . $targetRow;
+                    
+                    $isHeaderRow = false;
+                    if (isset($origins[$r])) {
+                        foreach ($origins[$r] as $origin) {
+                            if ($origin['isHeader']) { $isHeaderRow = true; break; }
+                        }
+                    }
+
+                    if ($isHeaderRow) {
+                        $sheet->getStyle($coord)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
+                        $sheet->setCellValue($coord, ''); 
+                    } else {
+                        $sheet->setCellValue($coord, '-');
+                    }
+                    $sheet->getStyle($coord)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 }
             }
         }

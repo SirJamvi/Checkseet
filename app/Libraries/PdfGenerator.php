@@ -29,19 +29,14 @@ class PdfGenerator
         $headerRowCount = $this->countHeaderRows($grid);
         $identityColCount = ($typeProcess === 'startup') ? 3 : $this->countIdentityColumns($grid, $headerRowCount);
 
-        // =========================================================
-        // HORIZONTAL PAGINATION (Membagi tabel ke samping)
-        // =========================================================
-        $maxColsPerPage = 7;
         $colChunks = [];
-        
         if ($typeProcess === 'startup') {
-            $totalDataCols = max(7, $grid['totalCols'] - $identityColCount); 
+            $totalDataCols = $grid['totalCols'] - $identityColCount; 
             $start = $identityColCount + 1;
-            $endTotal = $identityColCount + $totalDataCols;
+            $endTotal = $grid['totalCols'];
             
             while ($start <= $endTotal) {
-                $end = min($endTotal, $start + $maxColsPerPage - 1);
+                $end = min($endTotal, $start + 15 - 1);
                 $colChunks[] = [$start, $end];
                 $start = $end + 1;
             }
@@ -61,15 +56,16 @@ class PdfGenerator
             $chunkCount++;
         }
 
+        // FIX PDF VERTICAL: Font dikecilkan ke 5.5px, padding dipress jadi 1px agar tabel tidak tumpah ke page 2
         $cssScale = ($typeProcess === 'startup') ? '
-            @page { size: A4 landscape; margin-top: 100px; margin-bottom: 10px; margin-left: 20px; margin-right: 20px; }
+            @page { size: A4 landscape; margin-top: 130px; margin-bottom: 10px; margin-left: 15px; margin-right: 15px; }
             body { font-family: Arial, Helvetica, sans-serif; font-size: 6.5px; }
-            header { position: fixed; top: -90px; left: 0px; right: 0px; height: 80px; }
-            table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 2px !important; text-align: center; vertical-align: middle; word-wrap: break-word; overflow: hidden;}
+            header { position: fixed; top: -115px; left: 0px; right: 0px; height: 105px; }
+            table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 1px !important; text-align: center; vertical-align: middle; word-wrap: break-word; overflow: hidden;}
         ' : '
-            @page { size: A4 landscape; margin-top: 130px; margin-bottom: 30px; margin-left: 30px; margin-right: 30px; }
+            @page { size: A4 landscape; margin-top: 140px; margin-bottom: 30px; margin-left: 30px; margin-right: 30px; }
             body { font-family: Arial, Helvetica, sans-serif; font-size: 7.5px; }
-            header { position: fixed; top: -115px; left: 0px; right: 0px; height: 110px; }
+            header { position: fixed; top: -125px; left: 0px; right: 0px; height: 115px; }
             table.table-cs td, table.table-cs th { border: 1px solid black !important; padding: 4px !important; text-align: center; vertical-align: middle; word-wrap: break-word; overflow: hidden;}
         ';
 
@@ -127,14 +123,16 @@ class PdfGenerator
                 return '-';
             };
 
-            $dataColsCount = max(7, count($alldata));
+            $dataColsCount = count($alldata);
+            $totalPages = max(1, ceil($dataColsCount / 15));
+            $targetCols = $totalPages * 15;
 
             $opTr = $doc->createElement('tr');
             $tdOpLbl = $doc->createElement('td', 'Operator');
             $tdOpLbl->setAttribute('colspan', '3');
             $opTr->appendChild($tdOpLbl);
 
-            for ($i = 0; $i < $dataColsCount; $i++) {
+            for ($i = 0; $i < $targetCols; $i++) {
                 if (isset($alldata[$i])) {
                     $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by']);
                     $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
@@ -151,7 +149,7 @@ class PdfGenerator
             $tdAppLbl->setAttribute('colspan', '3');
             $appTr->appendChild($tdAppLbl);
 
-            for ($i = 0; $i < $dataColsCount; $i++) {
+            for ($i = 0; $i < $targetCols; $i++) {
                 if (isset($alldata[$i])) {
                     $status = strtolower(trim($getVal($alldata[$i], ['status_approval', 'status', 'is_approved', 'approval'])));
                     $isApp = in_array($status, ['approved', 'ok', 'yes', 'v', '1', 'true', 'done']);
@@ -219,14 +217,14 @@ class PdfGenerator
         $colgroup = '<colgroup>';
         for ($c = 1; $c <= $identityColCount; $c++) {
             if ($typeProcess === 'startup') {
-                if ($c === 1) $w = '4%'; elseif ($c === 2) $w = '38%'; else $w = '26%'; 
+                if ($c === 1) $w = '3%'; elseif ($c === 2) $w = '24%'; else $w = '13%'; 
             } else {
                 if ($c === 1) $w = '3%'; else $w = '11%';
             }
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         for ($c = $startCol; $c <= $endCol; $c++) {
-            $w = ($typeProcess === 'startup') ? '10%' : '6%';
+            $w = ($typeProcess === 'startup') ? '4%' : '6%'; 
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         $colgroup .= '</colgroup>';
@@ -259,7 +257,7 @@ class PdfGenerator
                     if ($isHeader) {
                         $html .= '<th></th>';
                     } else {
-                        $html .= '<td>-</td>';
+                        $html .= '<td>-</td>'; 
                     }
                 }
             }
