@@ -10,12 +10,25 @@ class Startup extends BaseController
 {
     protected $session;
     private $StartupModel;
+    
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
         $this->StartupModel = new StartupModel();
         $this->session = \Config\Services::session();
         $this->session->start();
+    }
+
+    // Fungsi otomatis pendeteksi tipe folder (startup/production/foregoing)
+    private function getFolderType($processStr) 
+    {
+        if (empty($processStr)) return 'startup';
+        $parts = explode('-', $processStr);
+        if (count($parts) > 1) {
+            if ($parts[1] === 'p') return 'production';
+            if ($parts[1] === 'f') return 'foregoing';
+        }
+        return 'startup';
     }
 
     public function index(): string
@@ -29,7 +42,6 @@ class Startup extends BaseController
 
     public function formInputStartup()
     {
-        // jika belum login tidak dapat membuka form startup
         if(!$this->session->has('empid')){
             return redirect()->to(base_url()."login");
         }
@@ -39,11 +51,17 @@ class Startup extends BaseController
             'validation' => \Config\Services::validation()
         ];
         
-        if($_GET['device']=='' || $_GET['process']==''){
+        if(empty($_GET['device']) || empty($_GET['process'])){
             return "";
         }
 
-        return view('/layout/'.$_GET['device']."/input/startup/".$_GET['process'],$data);
+        $folder = $this->getFolderType($_GET['process']);
+        
+        try {
+            return view('/layout/'.$_GET['device']."/input/".$folder."/".$_GET['process'],$data);
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, form input belum tersedia.</div>";
+        }
     }
 
     public function formEdit()
@@ -53,7 +71,15 @@ class Startup extends BaseController
             'alldata' => $this->StartupModel->getByNumber($_GET['number']),
             'number' => $_GET['number']
         ];
-        return view("/layout/".$data['alldata'][0]['device']."/input/startup/".$data['alldata'][0]['process'],$data);
+        
+        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+        
+        $folder = $this->getFolderType($data['alldata'][0]['process']);
+        try {
+            return view("/layout/".$data['alldata'][0]['device']."/input/".$folder."/".$data['alldata'][0]['process'],$data);
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, form edit belum tersedia.</div>";
+        }
     }
 
     public function edit($number)
@@ -73,41 +99,47 @@ class Startup extends BaseController
             'alldata' => $this->StartupModel->getByNumber($number)
         ];
 
-        return view("/layout/".$data['alldata'][0]['device']."/history/startup/".$data['alldata'][0]['process'],$data); 
+        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+
+        $folder = $this->getFolderType($data['alldata'][0]['process']);
+        
+        try {
+            return view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
+        }
     }
 
-   public function data()
+    public function data()
     {
+        $processStr = $this->request->getGet('process');
+        $deviceStr = $this->request->getGet('device');
+
         $data = [
             'title' => 'History | Startup Management',
             'alldata' => $this->StartupModel->getAll(
-                $_GET['dateStart'], 
-                $_GET['dateEnd'], 
-                $_GET['device'], 
-                $_GET['process'], 
-                $_GET['model'] ?? '', 
-                $_GET['lotno'] ?? '', 
-                $_GET['machno'] ?? ''
+                $this->request->getGet('dateStart') ?? date('Y-m-d', strtotime('-1 month')), 
+                $this->request->getGet('dateEnd') ?? date('Y-m-d'), 
+                $deviceStr, 
+                $processStr, 
+                $this->request->getGet('model') ?? '', 
+                $this->request->getGet('lotno') ?? '', 
+                $this->request->getGet('machno') ?? ''
             )
         ];
-        return view("/layout/".$_GET['device']."/history/startup/".$_GET['process'],$data);
+
+        $folder = $this->getFolderType($processStr);
+
+        try {
+            return view("/layout/".$deviceStr."/history/".$folder."/".$processStr, $data);
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, tampilan history untuk proses " . $processStr . " belum tersedia (File tidak ditemukan).</div>";
+        }
     }
 
     public function dataStartup()
     {
-        $data = [
-            'title' => 'History | Startup Management',
-            'alldata' => $this->StartupModel->getAll(
-                $_GET['dateStart'], 
-                $_GET['dateEnd'], 
-                $_GET['device'], 
-                $_GET['process'], 
-                $_GET['model'] ?? '', 
-                $_GET['lotno'] ?? '', 
-                $_GET['machno'] ?? ''
-            )
-        ];
-        return view("/layout/".$_GET['device']."/history/startup/".$_GET['process'],$data);
+        return $this->data();
     }
 
     public function deleteStartup($number)
@@ -220,7 +252,7 @@ class Startup extends BaseController
             {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'statrtup');
+            return redirect()->to(base_url().'startup');
         }
 
         $par001b = $this->request->getVar('par001b')!==null ? $this->request->getVar('par001b') : null;
@@ -306,7 +338,7 @@ class Startup extends BaseController
             {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'statrtup');
+            return redirect()->to(base_url().'startup');
         }
 
         $par001c = $this->request->getVar('par001c')!==null ? $this->request->getVar('par001c') : null;
@@ -391,7 +423,7 @@ class Startup extends BaseController
             {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'statrtup');
+            return redirect()->to(base_url().'startup');
         }
 
         $par001d = $this->request->getVar('par001d')!==null ? $this->request->getVar('par001d') : null;
@@ -477,7 +509,7 @@ class Startup extends BaseController
             {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'statrtup');
+            return redirect()->to(base_url().'startup');
         }
 
         $par001e = $this->request->getVar('par001e')!==null ? $this->request->getVar('par001e') : null;
@@ -563,8 +595,7 @@ class Startup extends BaseController
             {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'statrtup');
+            return redirect()->to(base_url().'startup'); // Diperbaiki dari statrtup
         }
     }
-    
 }

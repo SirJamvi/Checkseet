@@ -319,53 +319,63 @@ function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
     }
 }
 
+// Perbaikan pada input.php (View)
 function updateInput()
 {
-    let typeProcess,device,process;
-    process=document.getElementById("process-txt").value
-    if(process!=null){
-        device=process.split("-")[0]
-        if(process.split("-")[1] == 'p'){
-            document.getElementById('model-txt').disabled = false;
-            document.getElementById('lotno-txt').disabled = false;
-            typeProcess="production";
-        }
-        else if(process.split("-")[1] == 'f'){
-            document.getElementById('model-txt').disabled = false;
-            document.getElementById('lotno-txt').disabled = false;
-            typeProcess="foregoing";
-        }
-        else{
-            document.getElementById('model-txt').disabled = true;
-            document.getElementById('lotno-txt').disabled = true;
-            typeProcess="startup";
-        }
-        document.getElementById("form-action").action="/"+typeProcess
+    let typeProcess, device, process;
+    process = document.getElementById("process-txt").value;
+    
+    // CEGAH JIKA PROCESS MASIH KOSONG, null, atau strip '-'
+    if(!process || process === 'null' || process === '-'){
+        var form_input = document.getElementById('form-input');
+        $('#submit').hide();
+        form_input.innerHTML = "";
+        return; // Hentikan eksekusi di sini
     }
-    let cnt_error = document.getElementById("cnt-error-input")
-    let submit_button = document.getElementById("submit")
-    submit_button.disabled=false
-    cnt_error.value=0
-    updateSetting()
+
+    device = process.split("-")[0];
+    if(process.split("-")[1] == 'p'){
+        document.getElementById('model-txt').disabled = false;
+        document.getElementById('lotno-txt').disabled = false;
+        typeProcess="production";
+    }
+    else if(process.split("-")[1] == 'f'){
+        document.getElementById('model-txt').disabled = false;
+        document.getElementById('lotno-txt').disabled = false;
+        typeProcess="foregoing";
+    }
+    else{
+        document.getElementById('model-txt').disabled = true;
+        document.getElementById('lotno-txt').disabled = true;
+        typeProcess="startup";
+    }
+    document.getElementById("form-action").action="/"+typeProcess;
+    
+    let cnt_error = document.getElementById("cnt-error-input");
+    let submit_button = document.getElementById("submit");
+    submit_button.disabled = false;
+    cnt_error.value = 0;
+    
+    // Panggil updateSetting HANYA JIKA process sudah valid
+    updateSetting(process); 
+
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/form?device="+device+"&process="+process, true);
     xhr.onload = (e) => {
         if (xhr.readyState === 4) {
-            if (xhr.status === 200) {
-                var form_input = document.getElementById('form-input')
+            var form_input = document.getElementById('form-input');
+            if (xhr.status === 200 && xhr.responseText.trim() !== "") {
                 $('#submit').show();
-                form_input.innerHTML=xhr.responseText;
+                form_input.innerHTML = xhr.responseText;
                 
-                var processValue = document.getElementById("process-txt")
-                var header_modal = document.getElementById('catatan-modal-header')
+                var processValue = document.getElementById("process-txt");
+                var header_modal = document.getElementById('catatan-modal-header');
                 if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-                    header_modal.innerHTML=processValue.options[processValue.selectedIndex].text
+                    header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
                 }
             } else {
-                var form_input = document.getElementById('form-input')
                 $('#submit').hide();
-                form_input.innerHTML="";
-                console.error(xhr.statusText);
+                form_input.innerHTML = "";
             }
         }
     };
@@ -373,6 +383,32 @@ function updateInput()
         console.error(xhr.statusText);
     };
     xhr.send(null);
+}
+
+// Tambahkan argumen processCode agar tidak perlu query DOM lagi
+function updateSetting(processCode)
+{
+  if(!processCode || processCode === 'null' || processCode === '-'){
+      document.getElementById('catatan-modal-body').innerHTML = "Pilih proses terlebih dahulu.";
+      return;
+  }
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+processCode, true);
+  xhr.onload = (e) => {
+      var modal_body = document.getElementById('catatan-modal-body');
+      if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            modal_body.innerHTML = xhr.responseText;
+          } else {
+            modal_body.innerHTML = "Catatan tidak ditemukan untuk proses ini.";
+          }
+      }
+  };
+  xhr.onerror = (e) => {
+    document.getElementById('catatan-modal-body').innerHTML = "Gagal memuat catatan.";
+  };
+  xhr.send(null);
 }
 
 function updateDocNo()
