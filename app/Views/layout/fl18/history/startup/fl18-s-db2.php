@@ -66,14 +66,14 @@
             <td rowspan="2" colspan="2">* Collet Cleaning <br> (Bersihkan dengan Cotton Bud yang dibasahi dengan Alkohol)</td>
             <td >D/B Collet</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par005']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par005'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td >Middle Collet</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par006']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par006'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -81,7 +81,7 @@
             <td >6</td>
             <td colspan="3">* Checking contact probe (Check jika patah atau bengkok ganti yang baru)</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par007']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par007'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -98,7 +98,7 @@
             <td >8</td>
             <td colspan="3">* Pengecekan posisi die bonding di monitor</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par009']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par009'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -108,21 +108,21 @@
             <td >Air Pressure</td>
             <td rowspan="3">Nilai Air pressure, Dispenser time, vacuum <br> pressure disesuaikan agar mendapatkan <br> nilai ag paste yang standard</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par010']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par010'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td >Dispense Time</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par011']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par011'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
-       
+        
         <tr>
             <td >Vacuum pressure</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par012']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par012'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -131,14 +131,14 @@
             <td rowspan="2" colspan="2">* Check kondisi Ag Paste di monitor</td>
             <td >Posisi</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par013']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par013'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td >Quantity</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par014']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par014'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -147,14 +147,14 @@
             <td rowspan="2" colspan="2">* Check arah Ion Blower Fan</td>
             <td >Posisi blower</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par015']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par015'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td >Putaran blower</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par016']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par016'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -163,7 +163,7 @@
             <td colspan="2">* Cleaning Machine</td>
             <td >Bersihkan mesin dan sekitarnya dari debu dan kotoran</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par017']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par017'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -172,7 +172,7 @@
             <td colspan="2">* Pemeriksaan grounding <br> (Baut pengunci di conductive mat, banana plug, koneksi kabel grounding)</td>
             <td>Terpasang bagus/tidak longgar, lepas, putus</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par018']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par018'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -181,7 +181,7 @@
             <td colspan="2">* Cek Kondisi Collet</td>
             <td >Jika terjadi kerusakan atau diluar standard, <br> lakukan pergantian dengan yang baru. <br> Jika OK lanjutkan proses </td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par019']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par019'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -190,7 +190,7 @@
             <td colspan="2">* Cek Kondisi Mesin terhadap Pick Up Miss Chip</td>
             <td >Berdasarkan Sensor</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par020']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par020'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -199,28 +199,28 @@
             <td rowspan="2" colspan="2">Collet Bonding Arm Check (gunakan jari untuk mengecek <br> pergerakan bonding collet)</td>
             <td >Arah depan-belakang (fix tidak bergerak)</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par021']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par021'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td >Arah atas-bawah</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par022']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par022'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td colspan="4">Note</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par023']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['par023'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td colspan="4">Status Approval</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['status']; ?></td>
+                <td colspan="col"><?= (string)($alldata[$i]['status'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -228,11 +228,12 @@
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
                 <?php
-                    if((string)$alldata[$i]['role']){
-                        echo '<td colspan="col">'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
-                    } 
-                    else{
-                        echo '<td>  </td>';
+                    // FIX UTAMA: Cegat error undefined array key "-"
+                    $roleKey = $alldata[$i]['role'] ?? '';
+                    if ($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])) {
+                        echo '<td colspan="col">'. (string)$alldata[$i][$roleKey] . '</td>';
+                    } else {
+                        echo '<td colspan="col">-</td>';
                     }
                 ?>
             <?php } ?>
@@ -241,7 +242,7 @@
         <tr>
             <td colspan="4">Time</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= date('H:i', strtotime((string)$alldata[$i]['updated_at'])); ?></td>
+                <td colspan="col"><?= isset($alldata[$i]['updated_at']) ? date('H:i', strtotime((string)$alldata[$i]['updated_at'])) : '-'; ?></td>
             <?php } ?>
         </tr>
     </tbody>   

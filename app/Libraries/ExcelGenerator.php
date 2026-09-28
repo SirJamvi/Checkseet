@@ -31,8 +31,8 @@ class ExcelGenerator
         $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(11);
         $sheet = $spreadsheet->getActiveSheet();
         
+        // tableStartRow dimajukan ke 6 karena kita membuang baris judul dokumen (LD Die Bonding 2)
         $tableStartRow = 6; 
-        // ini der kalau mau ubah posisi tabel, ubah $tableStartRow di atas dan sesuaikan setRowsToRepeatAtTopByStartAndEnd di bawah
         $PER_PAGE = 11; 
         $dataColsCount = count($alldata ?? []);
         
@@ -43,18 +43,19 @@ class ExcelGenerator
              
              $this->insertKopSuratHorizontal($sheet, 2, $paddedDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE);
              
-             // Meneruskan $dataColsCount agar sistem tahu kapan harus melebarkan colspan header
-             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols, $identityCols, $dataColsCount);
+             // Meneruskan variabel untuk logic pembagian label "Hasil Start Up Check"
+             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols, $identityCols, $dataColsCount, $PER_PAGE, $totalPages);
              
              $lastColIndex = $identityCols + 1 + $paddedDataCols; 
         } else {
              $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
              $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols);
-             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, $dataColsCount);
+             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, $dataColsCount, $totalDataCols, 1);
              
              $lastColIndex = $grid['totalCols'] + 1;
         }
 
+        // Penyesuaian lastRow karena grid totalRows sudah berkurang 1 (baris judul dokumen dihapus)
         $lastRow = $tableStartRow + $grid['totalRows'] - 1;
         $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex); 
         
@@ -119,6 +120,20 @@ class ExcelGenerator
         $xpath = new \DOMXPath($doc); $nodes = $xpath->query("//table[@id='{$id}']");
         $table = $nodes->length > 0 ? $nodes->item(0) : null;
         if (!$table) return null;
+
+        // FITUR BARU: Hapus baris pertama di Thead (Judul Dokumen) agar tidak masuk ke Tabel Data Excel
+        $theads = $table->getElementsByTagName('thead');
+        if ($theads->length > 0) {
+            $firstThead = $theads->item(0);
+            $firstTr = $firstThead->getElementsByTagName('tr')->item(0);
+            if ($firstTr) {
+                // Pastikan yang dihapus adalah baris yang berisi judul besar dengan colspan penuh
+                $firstCell = $firstTr->getElementsByTagName('th')->item(0);
+                if ($firstCell && $firstCell->hasAttribute('colspan')) {
+                    $firstTr->parentNode->removeChild($firstTr);
+                }
+            }
+        }
 
         $maxExistingCols = 0;
         $trs = iterator_to_array($table->getElementsByTagName('tr'));
@@ -324,7 +339,7 @@ class ExcelGenerator
         $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
     }
 
-    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols, int $identityCols, int $dataColsCount) {
+    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols, int $identityCols, int $dataColsCount, int $PER_PAGE, int $totalPages) {
         $occupied = $grid['occupied'] ?? [];
         $origins = $grid['origins'] ?? [];
         $maxRow = $grid['totalRows'];
@@ -347,17 +362,40 @@ class ExcelGenerator
                     $colspan = $cell['colspan'] ?? 1; 
                     $rowspan = $cell['rowspan'] ?? 1;
 
-                    // FIX UTAMA: Lebarkan header (seperti "Hasil Start Up Check") agar menutupi penuh 14 kolom
+                    // FITUR BARU: Memecah Colspan header "Hasil Start Up Check" ke setiap blok per halaman
                     if ($colspan > 1 && $dataColsCount > 0 && ($c + $colspan - 1) === ($identityCols + $dataColsCount)) {
-                        $oldColspan = $colspan;
-                        $colspan += ($targetDataCols - $dataColsCount);
                         
-                        // Tandai area yang baru saja dilebarkan sebagai 'terisi' agar tidak tertimpa strip (-)
-                        for ($rr = $r; $rr < $r + $rowspan; $rr++) {
-                            for ($cc = $c + $oldColspan; $cc < $c + $colspan; $cc++) {
-                                $occupied[$rr][$cc] = true;
+                        $headerText = html_entity_decode(strip_tags($cell['value'] ?? ''));
+
+                        // Kita timpa/pecah colspan asli menjadi colspan per blok halaman ($PER_PAGE)
+                        for ($p = 0; $p < $totalPages; $p++) {
+                            $chunkStartCol = ($identityCols + 2) + ($p * $PER_PAGE); // Kolom excel mulai
+                            $chunkEndCol = $chunkStartCol + $PER_PAGE - 1; // Kolom excel akhir
+                            
+                            $chunkStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
+                            $chunkEndLetter = Coordinate::stringFromColumnIndex($chunkEndCol);
+                            
+                            $chunkCoord = $chunkStartLetter . $targetRow;
+                            
+                            $sheet->setCellValue($chunkCoord, $headerText);
+                            $sheet->mergeCells("{$chunkCoord}:{$chunkEndLetter}" . ($targetRow + $rowspan - 1));
+                            
+                            $style = $sheet->getStyle($chunkCoord);
+                            $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+                            if (isset($cell['isHeader']) && $cell['isHeader']) {
+                                $style->getFont()->setBold(true);
+                                $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
+                            }
+                            
+                            // Tandai occupied agar tidak ditimpa fungsi pengisian kosong
+                            for ($rr = $r; $rr < $r + $rowspan; $rr++) {
+                                for ($cc = ($identityCols + 1) + ($p * $PER_PAGE); $cc < ($identityCols + 1) + (($p + 1) * $PER_PAGE); $cc++) {
+                                    $occupied[$rr][$cc] = true;
+                                }
                             }
                         }
+                        // Skip blok pengisian colspan standar karena sudah di handle secara custom di atas
+                        continue; 
                     }
 
                     $actualColspan = min($colspan, $targetGridCols - $c + 1);
@@ -378,7 +416,6 @@ class ExcelGenerator
                 }
             }
 
-            // FIX UTAMA: Looping pengisian sel kosong (-) disederhanakan dan dijamin sejajar dengan colspan
             for ($c = 1; $c <= $targetGridCols; $c++) {
                 if (empty($occupied[$r][$c])) {
                     $targetCol = $c + 1; 
