@@ -31,13 +31,14 @@ class ExcelGenerator
         $sheet = $spreadsheet->getActiveSheet();
         
         $tableStartRow = 6; 
-        $PER_PAGE = 15; // Batas 15 data per page
+        
+        // Ambil PER_PAGE dari Controller, jika tidak ada set default 14
+        $PER_PAGE = $PER_PAGE ?? 14; 
         $dataColsCount = count($alldata ?? []);
         
+        $targetDataRowCount = 0;
+        
         if ($typeProcess === 'startup') {
-            // ==========================================
-            // LOGIKA STARTUP: HORIZONTAL (KE KANAN)
-            // ==========================================
             $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
             $paddedDataCols = $totalPages * $PER_PAGE;
              
@@ -47,17 +48,37 @@ class ExcelGenerator
             $lastColIndex = $identityCols + 1 + $paddedDataCols; 
             $lastRow = $tableStartRow + $grid['totalRows'] - 1;
         } else {
-            // ==========================================
-            // LOGIKA PRODUCTION: VERTIKAL (KE BAWAH)
-            // ==========================================
             $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
             $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols);
             
             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, 0, $totalDataCols, 1);
              
-            // FIX: Tambah + 1 agar kolom terakhir (Judge) tidak terpotong (Karena grid 1 dimulai dari Excel Col 2 / B)
             $lastColIndex = $grid['totalCols'] + 1;
             $lastRow = $tableStartRow + $grid['totalRows'] - 1;
+
+            // ==========================================
+            // LOGIKA DUMMY ROWS (DATA PADDING)
+            // ==========================================
+            $dataRowCount = $grid['totalRows'] - $headerRowCount;
+            $totalPages = max(1, ceil($dataRowCount / $PER_PAGE));
+            $targetDataRowCount = $totalPages * $PER_PAGE;
+            
+            // Hitung kekurangan baris agar pas kelipatan halaman
+            $dummyRowsNeeded = $targetDataRowCount - $dataRowCount;
+
+            if ($dummyRowsNeeded > 0) {
+                for ($d = 1; $d <= $dummyRowsNeeded; $d++) {
+                    $lastRow++; 
+                    
+                    for ($c = 2; $c <= $lastColIndex; $c++) { 
+                        $coord = Coordinate::stringFromColumnIndex($c) . $lastRow;
+                        $sheet->setCellValue($coord, '-');
+                        $sheet->getStyle($coord)->getAlignment()
+                              ->setVertical(Alignment::VERTICAL_CENTER)
+                              ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    }
+                }
+            }
         }
 
         $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex); 
@@ -88,50 +109,64 @@ class ExcelGenerator
         } else {
             $sheet->getPageSetup()->setFitToPage(true);
             $sheet->getPageSetup()->setFitToWidth(1);
-            $sheet->getPageSetup()->setFitToHeight(0); // Memanjang ke bawah
-
-            // Otomatis Page Break setiap 15 Baris Data ke Bawah
-            $dataStartRow = $tableStartRow + $headerRowCount;
-            $dataRowCount = $grid['totalRows'] - $headerRowCount;
+            $sheet->getPageSetup()->setFitToHeight(0); 
             
-            for ($i = 15; $i < $dataRowCount; $i += 15) {
+            // Memaksa Excel potong kertas per kelipatan $PER_PAGE
+            $dataStartRow = $tableStartRow + $headerRowCount;
+            for ($i = $PER_PAGE; $i < $targetDataRowCount; $i += $PER_PAGE) {
                 $breakRow = $dataStartRow + $i;
                 $sheet->setBreak("A{$breakRow}", \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_ROW);
             }
         }
         
-        // ==========================================
-        // FIX UKURAN LEBAR KOLOM & TINGGI BARIS AGAR FULL PAPER
-        // ==========================================
         $sheet->getPageSetup()->setPrintArea("A1:{$lastColLetter}{$lastRow}");
         $sheet->getPageMargins()->setTop(0.4)->setRight(0.3)->setLeft(0.3)->setBottom(0.4);
         
         $sheet->getColumnDimension('A')->setWidth(2); 
-        $sheet->getColumnDimension('B')->setWidth(5); // Kolom No / Awal
+        $sheet->getColumnDimension('B')->setWidth(5); 
 
         for ($col = 3; $col <= $identityCols + 1; $col++) {
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(20); 
         }
 
-        // Hitung dan bagi sisa lebar kertas untuk diregangkan ke kolom Parameter
-        $fixedWidth = 7 + (($identityCols - 1) * 20); // Lebar A + B + sisa Identity
-        $remainingWidth = 135 - $fixedWidth; // 135 adalah estimasi kapasitas lebar karakter A4 Landscape
+        $fixedWidth = 7 + (($identityCols - 1) * 20); 
         $dataColCount = $lastColIndex - ($identityCols + 1);
         
-        $dataWidth = 12; // Default
+        $dataWidth = 12; 
         if ($dataColCount > 0) {
-            // Regangkan otomatis
-            $dataWidth = max(10, $remainingWidth / $dataColCount);
-            $dataWidth = min(25, $dataWidth); // Maksimal agar tidak kelonggaran
+            $remainingWidth = 135 - $fixedWidth; 
+            $dataWidth = max(10, min(25, $remainingWidth / $dataColCount));
         }
 
         for ($col = $identityCols + 2; $col <= $lastColIndex; $col++) {
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($dataWidth);
         }
 
-        // Bikin Row Height menjadi 25 agar baris membesar ke bawah dan mengisi kertas
-        for ($r = $tableStartRow; $r <= $lastRow; $r++) {
-            $sheet->getRowDimension($r)->setRowHeight(67.5);
+        // ==========================================
+        // KALIBRASI ROW HEIGHT DENGAN SAFETY MARGIN
+        // ==========================================
+        if ($typeProcess !== 'startup') {
+            $totalExcelWidth = $fixedWidth + ($dataColCount * $dataWidth);
+            $totalWidthPts = $totalExcelWidth * 6; // Estimasi konversi dilonggarkan
+            $scaleFactor = 796 / $totalWidthPts; 
+            
+            $targetPageHeight = 538 / $scaleFactor; 
+            $headerHeight = 160; // Ruang atas diperbesar ke 160
+            $availableDataHeight = $targetPageHeight - $headerHeight;
+            
+            // Margin Aman: Kurangi 15% dari sisa ruang agar tidak menabrak margin bawah (Cut-off)
+            $safeDataHeight = $availableDataHeight * 0.85;
+            
+            $idealRowHeight = $safeDataHeight / $PER_PAGE;
+            $idealRowHeight = max(25, min(80, $idealRowHeight)); // Range tinggi rasional (25px - 80px)
+            
+            for ($r = $tableStartRow; $r <= $lastRow; $r++) {
+                $sheet->getRowDimension($r)->setRowHeight($idealRowHeight);
+            }
+        } else {
+            for ($r = $tableStartRow; $r <= $lastRow; $r++) {
+                $sheet->getRowDimension($r)->setRowHeight(25);
+            }
         }
 
         $fileName = 'Report_' . strtoupper($process ?? 'DOC') . '_' . date('Ymd_Hi') . '.xlsx';
@@ -206,7 +241,7 @@ class ExcelGenerator
                     return '-';
                 };
 
-                $PER_PAGE = 15;
+                $PER_PAGE = 14;
                 $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
                 $targetCols = $totalPages * $PER_PAGE;
 
