@@ -168,8 +168,8 @@ class History extends BaseController
 
         $rawStart = $this->request->getGet('dateStart');
         $rawEnd   = $this->request->getGet('dateEnd');
-        $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) : '';
-        $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) : '';
+        $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) . ' 00:00:00' : '';
+        $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) . ' 23:59:59' : '';
 
         $model = $this->request->getGet('model') ?? '';
         $lotno = $this->request->getGet('lotno') ?? '';

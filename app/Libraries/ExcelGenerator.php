@@ -17,9 +17,17 @@ class ExcelGenerator
     {
         extract($context); 
 
-        // KUNCI UTAMA: Standar Pagination 14 Hari dikirim ke SEMUA fungsi biar seragam
-        $PER_PAGE = 14; 
         $isStartup = (strtolower($typeProcess) === 'startup');
+
+        // =========================================================================
+        // 📝 [EDIT 1] PENGATURAN BATAS DATA PER HALAMAN (PAGINATION)
+        // =========================================================================
+        if ($isStartup) {
+            $PER_PAGE = 14; // Startup: Batas 14 Kolom ke samping
+        } else {
+            $PER_PAGE = 15; // Production: Batas 15 Baris ke bawah
+        }
+        $PER_PAGE = $context['PER_PAGE'] ?? $PER_PAGE; 
 
         $extractResult = $this->extractTableElement($htmlString, 'table1', $typeProcess, $namaApprover, $alldata ?? [], $PER_PAGE);
         if ($extractResult === null) die("Error: table1 tidak ditemukan atau format tidak sesuai.");
@@ -31,35 +39,62 @@ class ExcelGenerator
         $headerRowCount = $this->countHeaderRows($grid);
 
         $spreadsheet = new Spreadsheet();
-        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(11);
+        
+        // =========================================================================
+        // 📝 [EDIT 2] PENGATURAN FONT TABEL UTAMA (DATA & HEADER)
+        // =========================================================================
+        if ($isStartup) {
+            $ukuranFontTabel = 14; // Ukuran Font Startup
+        } else {
+            $ukuranFontTabel = 12; // Ukuran Font Production
+        }
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize($ukuranFontTabel);
         $sheet = $spreadsheet->getActiveSheet();
         
         $tableStartRow = 6; 
-        $dataColsCount = count($alldata ?? []);
         
-        // =======================================================
-        // 1. TULIS KOP SURAT & GRID SESUAI JALUR
-        // =======================================================
+        $dataColsCount = count($alldata ?? []);
+        $targetDataRowCount = 0;
+        
         if ($isStartup) {
-             $totalPagesCols = max(1, ceil($dataColsCount / $PER_PAGE));
-             $paddedDataCols = $totalPagesCols * $PER_PAGE;
+            $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
+            $paddedDataCols = $totalPages * $PER_PAGE;
              
-             $this->insertKopSuratHorizontal($sheet, 2, $paddedDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE);
-             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols, $identityCols, $dataColsCount, $PER_PAGE, $totalPagesCols, $isStartup);
+            $this->insertKopSuratHorizontal($sheet, 2, $paddedDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE);
+            $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $paddedDataCols, $identityCols, $dataColsCount, $PER_PAGE, $totalPages);
              
-             $lastColIndex = $identityCols + 1 + $paddedDataCols; 
+            $lastColIndex = $identityCols + 1 + $paddedDataCols; 
+            $lastRow = $tableStartRow + $grid['totalRows'] - 1;
         } else {
-             $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
+            $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
+            $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols);
+            
+            $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, 0, $totalDataCols, 1);
              
-             $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols);
-             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, 0, $totalDataCols, 1, $isStartup);
-             
-             $lastColIndex = $grid['totalCols'] + 1;
+            $lastColIndex = $grid['totalCols'] + 1;
+            $lastRow = $tableStartRow + $grid['totalRows'] - 1;
+
+            $dataRowCount = $grid['totalRows'] - $headerRowCount;
+            $totalPages = max(1, ceil($dataRowCount / $PER_PAGE));
+            $targetDataRowCount = $totalPages * $PER_PAGE;
+            
+            $dummyRowsNeeded = $targetDataRowCount - $dataRowCount;
+
+            if ($dummyRowsNeeded > 0) {
+                for ($d = 1; $d <= $dummyRowsNeeded; $d++) {
+                    $lastRow++; 
+                    for ($c = 2; $c <= $lastColIndex; $c++) { 
+                        $coord = Coordinate::stringFromColumnIndex($c) . $lastRow;
+                        $sheet->setCellValue($coord, '-');
+                        $sheet->getStyle($coord)->getAlignment()
+                              ->setVertical(Alignment::VERTICAL_CENTER)
+                              ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    }
+                }
+            }
         }
 
-        $lastRow = $tableStartRow + $grid['totalRows'] - 1;
         $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex); 
-        
         $tableRange = "B{$tableStartRow}:{$lastColLetter}{$lastRow}";
         $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
@@ -71,46 +106,105 @@ class ExcelGenerator
         $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $headerEndRow);
         
         $lastIdentityColLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
-        $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('B', $lastIdentityColLetter); 
 
-        // =======================================================
-        // 2. SETUP HALAMAN PRINT (ANTI KERTAS KOSONG)
-        // =======================================================
+        // =========================================================================
+        // PENGATURAN HALAMAN CETAK (PRINT SETUP)
+        // =========================================================================
+        $sheet->getPageSetup()->setFitToPage(true);
+
         if ($isStartup) {
-            $sheet->getPageSetup()->setFitToPage(true);
-            $sheet->getPageSetup()->setFitToWidth($totalPagesCols); 
+            $sheet->getPageSetup()->setFitToWidth(0); 
             $sheet->getPageSetup()->setFitToHeight(1); 
+            $sheet->getPageSetup()->setColumnsToRepeatAtLeftByStartAndEnd('B', $lastIdentityColLetter); 
 
-            // Page break vertikal khusus potong hari (Startup)
-            for ($p = 1; $p < $totalPagesCols; $p++) {
+            $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
+            for ($p = 1; $p < $totalPages; $p++) {
                 $breakColIndex = ($identityCols + 1) + ($p * $PER_PAGE) + 1; 
                 $breakColLetter = Coordinate::stringFromColumnIndex($breakColIndex);
                 $sheet->setBreak($breakColLetter . '1', \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_COLUMN);
             }
         } else {
-            // FIX PRODUCTION: Bebaskan baris ngisi penuh sampai bawah kertas!
-            $sheet->getPageSetup()->setFitToPage(false); // Matikan paksaan FitToPage
-            $sheet->getPageSetup()->setScale(70); // Gedein huruf & kolom jadi 70%
-            // Tidak ada setBreak baris sama sekali, biarkan ngalir alami!
+            $sheet->getPageSetup()->setFitToWidth(1);
+            $sheet->getPageSetup()->setFitToHeight(0); 
+            
+            $dataStartRow = $tableStartRow + $headerRowCount;
+            for ($i = $PER_PAGE; $i < $targetDataRowCount; $i += $PER_PAGE) {
+                $breakRow = $dataStartRow + $i;
+                $sheet->setBreak("A{$breakRow}", \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_ROW);
+            }
         }
         
         $sheet->getPageSetup()->setPrintArea("A1:{$lastColLetter}{$lastRow}");
         $sheet->getPageMargins()->setTop(0.4)->setRight(0.3)->setLeft(0.3)->setBottom(0.4);
         
-        // =======================================================
-        // 3. ATUR LEBAR KOLOM (DIBEDAKAN STARTUP VS PRODUCTION)
-        // =======================================================
+        // =========================================================================
+        // 📝 [EDIT 3] PENGATURAN LEBAR KOLOM "NO" (KOLOM B)
+        // =========================================================================
         $sheet->getColumnDimension('A')->setWidth(2); 
-        $sheet->getColumnDimension('B')->setWidth(5);     
-        
-        for ($col = 3; $col <= $identityCols + 1; $col++) {
-            $width = $isStartup ? 20 : 15; // Identitas Production sedikit lebih gemuk
-            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($width); 
+        if ($isStartup) {
+            $sheet->getColumnDimension('B')->setWidth(5); 
+        } else {
+            $sheet->getColumnDimension('B')->setWidth(4); 
         }
+
+        // =========================================================================
+        // 📝 [EDIT 4] PENGATURAN LEBAR KOLOM IDENTITAS & DATA
+        // =========================================================================
+        if ($isStartup) {
+            $lebarKolomIdentitas = 20; 
+        } else {
+            $lebarKolomIdentitas = 10; 
+        }
+
+        for ($col = 3; $col <= $identityCols + 1; $col++) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($lebarKolomIdentitas); 
+        }
+
+        $fixedWidth = 7 + (($identityCols - 1) * $lebarKolomIdentitas); 
+        $dataColCount = $lastColIndex - ($identityCols + 1);
         
+        if ($dataColCount > 0) {
+            $remainingWidth = 135 - $fixedWidth; 
+            if ($isStartup) {
+                $dataWidth = max(10, min(25, $remainingWidth / $dataColCount));
+            } else {
+                $dataWidth = 6; // Lebar Data Production dikurusin ke 6
+            }
+        }
+
         for ($col = $identityCols + 2; $col <= $lastColIndex; $col++) {
-            $width = $isStartup ? 12 : 11; // Lebar data
-            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($width);
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($dataWidth ?? 12);
+        }
+
+        // =========================================================================
+        // 📝 [EDIT 5] PENGATURAN TINGGI BARIS (SETARA MERGE)
+        // =========================================================================
+        if (!$isStartup) {
+            $totalExcelWidth = $fixedWidth + ($dataColCount * ($dataWidth ?? 12));
+            $totalWidthPts = $totalExcelWidth * 6; 
+            $scaleFactor = 796 / $totalWidthPts; 
+            
+            $targetPageHeight = 538 / $scaleFactor; 
+            $headerHeight = 203; 
+            $availableDataHeight = $targetPageHeight - $headerHeight;
+            $safeDataHeight = $availableDataHeight * 0.95; 
+            
+            $idealRowHeight = $safeDataHeight / $PER_PAGE;
+            $idealRowHeight = max(20, min(80, $idealRowHeight)); 
+            
+            $dataStartRow = $tableStartRow + $headerRowCount;
+
+            for ($r = $tableStartRow; $r < $dataStartRow; $r++) {
+                $sheet->getRowDimension($r)->setRowHeight(30); // Tinggi Header Prod
+            }
+            for ($r = $dataStartRow; $r <= $lastRow; $r++) {
+                $sheet->getRowDimension($r)->setRowHeight($idealRowHeight); // Tinggi Data Prod
+            }
+        } else {
+            // Tinggi Baris khusus Startup (Statis)
+            for ($r = $tableStartRow; $r <= $lastRow; $r++) {
+                $sheet->getRowDimension($r)->setRowHeight(25);
+            }
         }
 
         $fileName = 'Report_' . strtoupper($process ?? 'DOC') . '_' . date('Ymd_Hi') . '.xlsx';
@@ -123,7 +217,7 @@ class ExcelGenerator
         exit();
     }
 
-    private function extractTableElement(string $html, string $id, string $typeProcess, string $namaApprover, array $alldata, int $PER_PAGE): ?array {
+    private function extractTableElement(string $html, string $id, string $typeProcess, string $namaApprover, array $alldata, int $PER_PAGE = 14): ?array {
         $doc = new \DOMDocument(); libxml_use_internal_errors(true); $doc->loadHTML('<?xml encoding="UTF-8">' . $html); libxml_clear_errors();
         $xpath = new \DOMXPath($doc); $nodes = $xpath->query("//table[@id='{$id}']");
         $table = $nodes->length > 0 ? $nodes->item(0) : null;
@@ -185,7 +279,6 @@ class ExcelGenerator
                     return '-';
                 };
 
-                // PADDING OTOMATIS SESUAI $PER_PAGE (14) DARI CONTROLLER
                 $totalPages = max(1, ceil($dataColsCount / $PER_PAGE));
                 $targetCols = $totalPages * $PER_PAGE;
 
@@ -278,43 +371,76 @@ class ExcelGenerator
     private function insertKopSuratHorizontal($sheet, int $startRow, int $targetDataCols, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess, int $identityCols, int $PER_PAGE) {
         $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
 
-        $lastIdentityLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
+        $isStartup = (strtolower($typeProcess) === 'startup');
 
-        $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
-        $sheet->mergeCells("B{$r1}:{$lastIdentityLetter}{$r3}");
-        $sheet->getStyle("B{$r1}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
-        $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize(10);
-        
-        $sheet->setCellValue("B{$r4}", "MACHINE No : " . $machNo);
-        $sheet->mergeCells("B{$r4}:{$lastIdentityLetter}{$r4}");
-        $sheet->getStyle("B{$r4}")->getFont()->setBold(true)->setSize(10);
-        $sheet->getStyle("B{$r1}:{$lastIdentityLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-
-        $totalPages = max(1, ceil($targetDataCols / $PER_PAGE));
-        for ($p = 0; $p < $totalPages; $p++) {
-            $chunkStartCol = ($identityCols + 2) + ($p * $PER_PAGE);
-            $chunkEndCol = $chunkStartCol + $PER_PAGE - 1; 
-            
-            $docStartCol = $chunkEndCol - 2; 
-
-            $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+        // =========================================================================
+        // 📝 [EDIT 6] PENGATURAN FONT KOP SURAT (KIRI)
+        // =========================================================================
+        if ($isStartup) {
+            $fontKopKiri = 14; 
+        } else {
+            $fontKopKiri = 14; 
         }
 
-        for ($r = $r1; $r <= $r3; $r++) $sheet->getRowDimension($r)->setRowHeight(20);
-        $sheet->getRowDimension($r4)->setRowHeight(38); 
+        // BIKIN KOP KIRI LEGA (TIDAK TERCEKIK DI PRODUCTION)
+        $spanKiri = $isStartup ? ($identityCols + 1) : ($identityCols + 4); 
+        $lastKopKiriLetter = Coordinate::stringFromColumnIndex($spanKiri);
+
+        $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
+        $sheet->mergeCells("B{$r1}:{$lastKopKiriLetter}{$r3}");
+        $sheet->getStyle("B{$r1}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+        $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize($fontKopKiri);
+        
+        $sheet->setCellValue("B{$r4}", "MACHINE No : " . $machNo);
+        $sheet->mergeCells("B{$r4}:{$lastKopKiriLetter}{$r4}");
+        $sheet->getStyle("B{$r4}")->getFont()->setBold(true)->setSize($fontKopKiri);
+        $sheet->getStyle("B{$r1}:{$lastKopKiriLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        if ($isStartup) {
+            $totalPages = max(1, ceil($targetDataCols / $PER_PAGE));
+            for ($p = 0; $p < $totalPages; $p++) {
+                $chunkStartCol = ($identityCols + 2) + ($p * $PER_PAGE);
+                $chunkEndCol = $chunkStartCol + $PER_PAGE - 1; 
+                
+                $docStartCol = max($chunkStartCol + 1, $chunkEndCol - 2); 
+                // KUNCI STARTUP: Center Start harus ngikutin per potongan halaman
+                $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+            }
+        } else {
+            $chunkStartCol = $identityCols + 2;
+            $chunkEndCol = $chunkStartCol + $targetDataCols - 1; 
+            
+            $docStartCol = max($chunkStartCol + 1, $chunkEndCol - 6); 
+            // KUNCI PRODUCTION: Center Start digeser dari Kiri biar lega
+            $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $spanKiri + 1, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+        }
+
+        // =========================================================================
+        // 📝 [EDIT 7] PENGATURAN TINGGI BARIS KOP SURAT
+        // =========================================================================
+        if ($isStartup) {
+            $tinggiKopAtas = 20;  // Baris 1, 2, 3
+            $tinggiKopBawah = 38; // Baris 4 (Tanda tangan)
+        } else {
+            $tinggiKopAtas = 20; 
+            $tinggiKopBawah = 38; 
+        }
+
+        for ($r = $r1; $r <= $r3; $r++) $sheet->getRowDimension($r)->setRowHeight($tinggiKopAtas);
+        $sheet->getRowDimension($r4)->setRowHeight($tinggiKopBawah); 
     }
 
-    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess) {
+    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $centerStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess) {
         $docStartLetter = Coordinate::stringFromColumnIndex($docStartCol);
         $docMidLetter   = Coordinate::stringFromColumnIndex($docStartCol + 1);
         $docEndLetter   = Coordinate::stringFromColumnIndex($chunkEndCol);
 
         $revisiStatis = "00"; 
         switch (strtolower($typeProcess)) {
-            case 'startup':    $revisiStatis = "00"; break;
-            case 'production': $revisiStatis = "01"; break;
-            case 'foregoing':  $revisiStatis = "02"; break;
-            default:           $revisiStatis = $revisi; break;
+            case 'startup': $revisiStatis = "04"; break;
+            case 'production': $revisiStatis = "06"; break;
+            case 'foregoing': $revisiStatis = "02"; break;
+            default: $revisiStatis = $revisi; break;
         }
 
         $sheet->setCellValue("{$docStartLetter}{$r1}", "No. Dok / No."); $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $noDok);
@@ -339,19 +465,28 @@ class ExcelGenerator
 
         $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r3}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
-        $midEndLetter = Coordinate::stringFromColumnIndex(max($chunkStartCol, $docStartCol - 1));
-        $centerStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
+        $midEndLetter = Coordinate::stringFromColumnIndex(max($centerStartCol, $docStartCol - 1));
+        $centerStartLetter = Coordinate::stringFromColumnIndex($centerStartCol);
         
         $sheet->setCellValue("{$centerStartLetter}{$r1}", $judulProses . "\n(" . $namaProduk . ")");
         $sheet->mergeCells("{$centerStartLetter}{$r1}:{$midEndLetter}{$r3}");
         $sheet->getStyle("{$centerStartLetter}{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize(12)->setUnderline(true);
-        $sheet->mergeCells("{$centerStartLetter}{$r4}:{$midEndLetter}{$r4}");
         
+        // =========================================================================
+        // 📝 [EDIT 8] PENGATURAN FONT JUDUL TENGAH
+        // =========================================================================
+        if (strtolower($typeProcess) === 'startup') {
+            $fontJudul = 14; 
+        } else {
+            $fontJudul = 14; 
+        }
+        $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize($fontJudul)->setUnderline(true);
+        
+        $sheet->mergeCells("{$centerStartLetter}{$r4}:{$midEndLetter}{$r4}");
         $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
     }
 
-    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols, int $identityCols, int $dataColsCount, int $PER_PAGE, int $totalPages, bool $isStartup) {
+    private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols, int $identityCols, int $dataColsCount, int $PER_PAGE, int $totalPages) {
         $occupied = $grid['occupied'] ?? [];
         $origins = $grid['origins'] ?? [];
         $maxRow = $grid['totalRows'];
@@ -374,7 +509,7 @@ class ExcelGenerator
                     $colspan = $cell['colspan'] ?? 1; 
                     $rowspan = $cell['rowspan'] ?? 1;
 
-                    if ($isStartup && $colspan > 1 && $dataColsCount > 0 && ($c + $colspan - 1) === ($identityCols + $dataColsCount)) {
+                    if ($colspan > 1 && $dataColsCount > 0 && ($c + $colspan - 1) === ($identityCols + $dataColsCount)) {
                         $headerText = html_entity_decode(strip_tags($cell['value'] ?? ''));
 
                         for ($p = 0; $p < $totalPages; $p++) {
