@@ -134,7 +134,7 @@ class StartupModel extends Model
         if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'"; }
         if ($machno !== '' && $machno !== 'ALL') {$sql .= " AND s.machno = '$machno'"; }
 
-        $sql .= " ORDER BY s.id";
+        $sql .= " ORDER BY s.machno ASC, s.created_at ASC";
         
         return $this->query($sql)->getResultArray();
     }

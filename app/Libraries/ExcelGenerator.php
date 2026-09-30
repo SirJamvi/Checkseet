@@ -31,11 +31,8 @@ class ExcelGenerator
         $sheet = $spreadsheet->getActiveSheet();
         
         $tableStartRow = 6; 
-        
-        // Ambil PER_PAGE dari Controller, jika tidak ada set default 14
         $PER_PAGE = $PER_PAGE ?? 14; 
         $dataColsCount = count($alldata ?? []);
-        
         $targetDataRowCount = 0;
         
         if ($typeProcess === 'startup') {
@@ -56,26 +53,18 @@ class ExcelGenerator
             $lastColIndex = $grid['totalCols'] + 1;
             $lastRow = $tableStartRow + $grid['totalRows'] - 1;
 
-            // ==========================================
-            // LOGIKA DUMMY ROWS (DATA PADDING)
-            // ==========================================
             $dataRowCount = $grid['totalRows'] - $headerRowCount;
             $totalPages = max(1, ceil($dataRowCount / $PER_PAGE));
             $targetDataRowCount = $totalPages * $PER_PAGE;
-            
-            // Hitung kekurangan baris agar pas kelipatan halaman
             $dummyRowsNeeded = $targetDataRowCount - $dataRowCount;
 
             if ($dummyRowsNeeded > 0) {
                 for ($d = 1; $d <= $dummyRowsNeeded; $d++) {
                     $lastRow++; 
-                    
                     for ($c = 2; $c <= $lastColIndex; $c++) { 
                         $coord = Coordinate::stringFromColumnIndex($c) . $lastRow;
                         $sheet->setCellValue($coord, '-');
-                        $sheet->getStyle($coord)->getAlignment()
-                              ->setVertical(Alignment::VERTICAL_CENTER)
-                              ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                        $sheet->getStyle($coord)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }
                 }
             }
@@ -91,7 +80,6 @@ class ExcelGenerator
         
         $headerEndRow = $tableStartRow + $headerRowCount - 1;
         $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $headerEndRow);
-        
         $lastIdentityColLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
 
         if ($typeProcess === 'startup') {
@@ -111,7 +99,6 @@ class ExcelGenerator
             $sheet->getPageSetup()->setFitToWidth(1);
             $sheet->getPageSetup()->setFitToHeight(0); 
             
-            // Memaksa Excel potong kertas per kelipatan $PER_PAGE
             $dataStartRow = $tableStartRow + $headerRowCount;
             for ($i = $PER_PAGE; $i < $targetDataRowCount; $i += $PER_PAGE) {
                 $breakRow = $dataStartRow + $i;
@@ -131,7 +118,6 @@ class ExcelGenerator
 
         $fixedWidth = 7 + (($identityCols - 1) * 20); 
         $dataColCount = $lastColIndex - ($identityCols + 1);
-        
         $dataWidth = 12; 
         if ($dataColCount > 0) {
             $remainingWidth = 135 - $fixedWidth; 
@@ -142,23 +128,18 @@ class ExcelGenerator
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($dataWidth);
         }
 
-        // ==========================================
-        // KALIBRASI ROW HEIGHT DENGAN SAFETY MARGIN
-        // ==========================================
         if ($typeProcess !== 'startup') {
             $totalExcelWidth = $fixedWidth + ($dataColCount * $dataWidth);
-            $totalWidthPts = $totalExcelWidth * 6; // Estimasi konversi dilonggarkan
+            $totalWidthPts = $totalExcelWidth * 6;
             $scaleFactor = 796 / $totalWidthPts; 
             
             $targetPageHeight = 538 / $scaleFactor; 
-            $headerHeight = 160; // Ruang atas diperbesar ke 160
+            $headerHeight = 160; 
             $availableDataHeight = $targetPageHeight - $headerHeight;
             
-            // Margin Aman: Kurangi 15% dari sisa ruang agar tidak menabrak margin bawah (Cut-off)
             $safeDataHeight = $availableDataHeight * 0.85;
-            
             $idealRowHeight = $safeDataHeight / $PER_PAGE;
-            $idealRowHeight = max(25, min(80, $idealRowHeight)); // Range tinggi rasional (25px - 80px)
+            $idealRowHeight = max(25, min(80, $idealRowHeight));
             
             for ($r = $tableStartRow; $r <= $lastRow; $r++) {
                 $sheet->getRowDimension($r)->setRowHeight($idealRowHeight);
@@ -194,6 +175,35 @@ class ExcelGenerator
                 if ($firstCell && $firstCell->hasAttribute('colspan')) {
                     $firstTr->parentNode->removeChild($firstTr);
                 }
+            }
+        }
+
+        $theads = $table->getElementsByTagName('thead');
+        foreach ($theads as $thead) {
+            $headerTrs = $thead->getElementsByTagName('tr');
+            $dataHeaderTr = null;
+            $remainingRows = 0;
+            foreach ($headerTrs as $idx => $tr) {
+                $ths = [];
+                foreach ($tr->childNodes as $th) {
+                    if ($th instanceof \DOMElement && in_array(strtolower($th->tagName), ['th', 'td'])) $ths[] = $th;
+                }
+                if (count($ths) > 1) {
+                    $dataHeaderTr = $tr;
+                    $remainingRows = $headerTrs->length - $idx;
+                    break;
+                }
+            }
+
+            if ($dataHeaderTr && $remainingRows > 1) {
+                $ths = [];
+                foreach ($dataHeaderTr->childNodes as $th) {
+                    if ($th instanceof \DOMElement && in_array(strtolower($th->tagName), ['th', 'td'])) $ths[] = $th;
+                }
+                for ($i = 0; $i < count($ths) - 1; $i++) {
+                    $ths[$i]->setAttribute('rowspan', (string)$remainingRows);
+                }
+                $ths[count($ths) - 1]->setAttribute('rowspan', '1');
             }
         }
 
@@ -301,6 +311,8 @@ class ExcelGenerator
         $occupied = []; $origins = []; $currentRow = 1; $maxCol = 0;
         foreach ($table->getElementsByTagName('tr') as $tr) {
             $col = 1;
+            $inThead = strtolower($tr->parentNode->tagName) === 'thead';
+            
             foreach ($tr->childNodes as $cell) {
                 if (!($cell instanceof \DOMElement)) continue;
                 $tag = strtolower($cell->tagName);
@@ -308,7 +320,13 @@ class ExcelGenerator
                 while (!empty($occupied[$currentRow][$col])) $col++;
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
-                $origins[$currentRow][$col] = ['value' => $cell->textContent, 'isHeader' => $tag === 'th', 'colspan' => $colspan, 'rowspan' => $rowspan];
+                
+                $isHeader = ($tag === 'th' || $inThead);
+                
+                // PEMBERSIH SPASI DAN ENTER (AUTO-TRIM)
+                $textContent = trim(preg_replace('/\s+/', ' ', $cell->textContent));
+                
+                $origins[$currentRow][$col] = ['value' => $textContent, 'isHeader' => $isHeader, 'colspan' => $colspan, 'rowspan' => $rowspan];
                 for ($r = $currentRow; $r < $currentRow + $rowspan; $r++) {
                     for ($c = $col; $c < $col + $colspan; $c++) { $occupied[$r][$c] = true; }
                 }

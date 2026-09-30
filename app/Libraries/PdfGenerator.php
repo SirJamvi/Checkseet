@@ -25,9 +25,51 @@ class PdfGenerator
             $this->injectApprover($doc, $table, $namaApprover, $alldata ?? []);
         }
 
+        $theads = $table->getElementsByTagName('thead');
+        foreach ($theads as $thead) {
+            $headerTrs = $thead->getElementsByTagName('tr');
+            $dataHeaderTr = null;
+            $remainingRows = 0;
+            foreach ($headerTrs as $idx => $tr) {
+                $ths = [];
+                foreach ($tr->childNodes as $th) {
+                    if ($th instanceof \DOMElement && in_array(strtolower($th->tagName), ['th', 'td'])) $ths[] = $th;
+                }
+                if (count($ths) > 1) {
+                    $dataHeaderTr = $tr;
+                    $remainingRows = $headerTrs->length - $idx;
+                    break;
+                }
+            }
+
+            if ($dataHeaderTr && $remainingRows > 1) {
+                $ths = [];
+                foreach ($dataHeaderTr->childNodes as $th) {
+                    if ($th instanceof \DOMElement && in_array(strtolower($th->tagName), ['th', 'td'])) $ths[] = $th;
+                }
+                for ($i = 0; $i < count($ths) - 1; $i++) {
+                    $ths[$i]->setAttribute('rowspan', (string)$remainingRows);
+                }
+                $ths[count($ths) - 1]->setAttribute('rowspan', '1');
+            }
+        }
+
+        $dataColsCount = count($alldata ?? []);
+        $maxExistingCols = 0;
+        $trs = iterator_to_array($table->getElementsByTagName('tr'));
+        foreach ($trs as $tr) {
+            $cols = 0;
+            foreach ($tr->childNodes as $td) {
+                if ($td instanceof \DOMElement && in_array(strtolower($td->tagName), ['td','th'])) {
+                    $cols += (int)($td->getAttribute('colspan') ?: 1);
+                }
+            }
+            if ($cols > $maxExistingCols) $maxExistingCols = $cols;
+        }
+        $identityColCount = max(1, $maxExistingCols - $dataColsCount);
+
         $grid = $this->buildGrid($table);
         $headerRowCount = $this->countHeaderRows($grid);
-        $identityColCount = ($typeProcess === 'startup') ? 3 : $this->countIdentityColumns($grid, $headerRowCount);
 
         $colChunks = [];
         if ($typeProcess === 'startup') {
@@ -56,7 +98,6 @@ class PdfGenerator
             $chunkCount++;
         }
 
-        // FIX PDF VERTICAL: Font dikecilkan ke 5.5px, padding dipress jadi 1px agar tabel tidak tumpah ke page 2
         $cssScale = ($typeProcess === 'startup') ? '
             @page { size: A4 landscape; margin-top: 130px; margin-bottom: 10px; margin-left: 15px; margin-right: 15px; }
             body { font-family: Arial, Helvetica, sans-serif; font-size: 6.5px; }
@@ -129,7 +170,7 @@ class PdfGenerator
 
             $opTr = $doc->createElement('tr');
             $tdOpLbl = $doc->createElement('td', 'Operator');
-            $tdOpLbl->setAttribute('colspan', '3');
+            
             $opTr->appendChild($tdOpLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
@@ -146,7 +187,6 @@ class PdfGenerator
             $appTr = $doc->createElement('tr');
             $approverText = ($namaApprover !== '' && $namaApprover !== '-') ? $namaApprover : '-';
             $tdAppLbl = $doc->createElement('td', htmlspecialchars("Approved by: " . $approverText));
-            $tdAppLbl->setAttribute('colspan', '3');
             $appTr->appendChild($tdAppLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
@@ -168,6 +208,7 @@ class PdfGenerator
         $occupied = []; $origins = []; $currentRow = 1; $maxCol = 0;
         foreach ($table->getElementsByTagName('tr') as $tr) {
             $col = 1;
+            $inThead = strtolower($tr->parentNode->tagName) === 'thead';
             foreach ($tr->childNodes as $cell) {
                 if (!($cell instanceof \DOMElement)) continue;
                 $tag = strtolower($cell->tagName);
@@ -175,7 +216,13 @@ class PdfGenerator
                 while (!empty($occupied[$currentRow][$col])) $col++;
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
-                $origins[$currentRow][$col] = ['value' => $cell->textContent, 'isHeader' => $tag === 'th', 'colspan' => $colspan, 'rowspan' => $rowspan];
+                
+                $isHeader = ($tag === 'th' || $inThead);
+                
+                // PEMBERSIH SPASI DAN ENTER (AUTO-TRIM)
+                $textContent = trim(preg_replace('/\s+/', ' ', $cell->textContent));
+                
+                $origins[$currentRow][$col] = ['value' => $textContent, 'isHeader' => $isHeader, 'colspan' => $colspan, 'rowspan' => $rowspan];
                 for ($r = $currentRow; $r < $currentRow + $rowspan; $r++) {
                     for ($c = $col; $c < $col + $colspan; $c++) { $occupied[$r][$c] = true; }
                 }
@@ -198,15 +245,6 @@ class PdfGenerator
         return 1;
     }
 
-    private function countIdentityColumns(array $grid, int $headerRowCount): int {
-        for ($r = 1; $r <= $headerRowCount; $r++) {
-            $rowOrigins = $grid['origins'][$r] ?? [];
-            if (count($rowOrigins) === 1 && reset($rowOrigins)['colspan'] === $grid['totalCols']) continue;
-            return $r;
-        }
-        return 1;
-    }
-
     private function build2DChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, string $typeProcess): string {
         [$startCol, $endCol] = $colRange;
         
@@ -217,14 +255,14 @@ class PdfGenerator
         $colgroup = '<colgroup>';
         for ($c = 1; $c <= $identityColCount; $c++) {
             if ($typeProcess === 'startup') {
-                if ($c === 1) $w = '3%'; elseif ($c === 2) $w = '24%'; else $w = '13%'; 
+                if ($c === 1) $w = '4%'; elseif ($c === 2) $w = '16%'; elseif ($c === 3) $w = '8%'; else $w = '8%'; 
             } else {
-                if ($c === 1) $w = '3%'; else $w = '11%';
+                if ($c === 1) $w = '4%'; else $w = '12%';
             }
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         for ($c = $startCol; $c <= $endCol; $c++) {
-            $w = ($typeProcess === 'startup') ? '4%' : '6%'; 
+            $w = ($typeProcess === 'startup') ? '4%'; 
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         $colgroup .= '</colgroup>';
@@ -244,8 +282,12 @@ class PdfGenerator
                     
                     if ($actualColspan > 0) {
                         $tag = $origin['isHeader'] ? 'th' : 'td';
+                        if(strtolower(trim($origin['value'])) == "operator" || strpos(strtolower(trim($origin['value'])), "approved by") !== false) {
+                            $colspanAttr = ' colspan="' . $identityColCount . '"';
+                        } else {
+                            $colspanAttr = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
+                        }
                         $rowspanAttr = $origin['rowspan'] > 1 ? ' rowspan="' . $origin['rowspan'] . '"' : '';
-                        $colspanAttr = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
                         $value = htmlspecialchars($origin['value'], ENT_QUOTES, 'UTF-8');
                         $html .= "<{$tag}{$rowspanAttr}{$colspanAttr}>{$value}</{$tag}>";
                     }

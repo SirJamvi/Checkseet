@@ -141,7 +141,14 @@ class History extends BaseController
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
         $revisi = str_pad(!empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0, 2, '0', STR_PAD_LEFT);
-        $machNo = $machno !== '' ? $machno : ((!empty($alldata) && $alldata[0]['machno'] !== '-') ? $alldata[0]['machno'] : '');
+        
+        // --- PERBAIKAN LOGIKA NAMA MESIN DI SINI ---
+        // Jika parameter machno dikirimkan dan bukan string kosong/'null'/'ALL', tampilkan nama mesin tersebut.
+        // Jika kosong, berarti user ingin melihat semua mesin, maka tampilkan "ALL MACHINES".
+        $machNo = ($machno !== '' && $machno !== 'null' && $machno !== 'ALL') ? strtoupper($machno) : 'ALL MACHINES';
+        
+        // Definisikan juga variabel $nama_mesin agar pasti nyambung dengan kop_surat.php
+        $nama_mesin = $machNo;
 
         $tglBerlaku = '-';
         if ($latestDate > 0) {
@@ -153,7 +160,8 @@ class History extends BaseController
             $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
         }
 
-        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
+        // --- Variabel $nama_mesin ditambahkan ke return compact ---
+        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
     }
 
     // =========================================================================

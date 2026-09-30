@@ -121,7 +121,7 @@ class ProductionModel extends Model
         `created_at` <= '$dateEnd' AND
         `process` = '$process'$modelCondition 
         $lotnoCondition$machnoCondition
-        ORDER BY id";
+        ORDER BY `machno` ASC, `created_at` ASC"; // <-- UBAH BARIS INI
         
         $data = $this->query($query);
         return $data->getResultArray();

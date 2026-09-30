@@ -89,7 +89,7 @@ class ForegoingModel extends Model {
         s.device LIKE '%$device%' AND
         s.process LIKE '%$process\%'$modelCondition 
         $lotnoCondition$machnoCondition
-        ORDER BY s.id";
+        ORDER BY s.machno ASC, s.created_at ASC"; // <-- UBAH BARIS INI
         
         $data = $this->query($query);
         return $data->getResultArray();

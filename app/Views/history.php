@@ -178,7 +178,7 @@
       var processCode = document.getElementById("process").value;
       var machineSelect = $('#machno');
 
-      // Kosongkan dropdown, langsung siap diisi mesin asli
+      // Kosongkan dropdown
       machineSelect.empty();
 
       if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
@@ -199,11 +199,18 @@
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
+          
+          // --- TAMBAHKAN BARIS INI ---
+          // Masukkan kembali opsi "Semua Mesin" ke urutan paling atas dengan value kosong ("")
+          machineSelect.append(new Option("-- Semua Mesin (Tidak Dipilih) --", "", true, true));
+          // ---------------------------
+
           for (let i = 0; i < data.length; i++) {
-            // Langsung masukkan nama mesin dari database
+            // Masukkan nama mesin dari database
             machineSelect.append(new Option(data[i].machine_name, data[i].machine_name, false, false));
           }
-          // Otomatis men-trigger tabel untuk update berdasarkan mesin pertama di list
+          
+          // Otomatis men-trigger tabel untuk update 
           machineSelect.trigger('change');
         },
         error: function(data) {
