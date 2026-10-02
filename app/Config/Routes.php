@@ -15,6 +15,8 @@ $routes->post('/login', 'Auth::login');
 $routes->get('/logout', 'Auth::logout');
 $routes->get('/forbidden', 'Auth::forbidden');
 
+$routes->get('auth/cek_role', 'Auth::cek_role');
+
 // ==========================================================
 // 2. CORE MODULES: PRODUCTION
 // ==========================================================

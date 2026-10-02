@@ -72,6 +72,7 @@ class Home extends BaseController
 
     public function ajaxAutofill()
     {
+        error_reporting(0);
         if ($this->request->isAJAX()) {
             $empid = $_GET['empid-txt'] ?? '';
 

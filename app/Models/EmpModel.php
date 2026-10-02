@@ -6,97 +6,44 @@ use CodeIgniter\Model;
 
 class EmpModel extends Model {
 
-    /**
-     * Urutan prioritas koneksi. Tambah/kurangi tier sesuai kebutuhan.
-     * 'host' & 'port' dipakai untuk cek reachability cepat (fsockopen).
-     * Untuk 'default' (local Laragon) tidak perlu dicek reachability, langsung dianggap tersedia.
-     */
-    private function getConnectionTiers(): array
-    {
-        return [
-            ['group' => 'second',   'host' => '192.168.132.130', 'port' => 1433, 'check' => true],
-            // aktifkan baris di bawah kalau kamu sudah isi konfigurasi 'external' di Database.php
-            // ['group' => 'external', 'host' => 'ISI_HOST_EXTERNAL', 'port' => 1433, 'check' => true],
-            ['group' => 'default',  'host' => null, 'port' => null, 'check' => false],
-        ];
-    }
-
-    private function isHostReachable(string $host, int $port, int $timeout = 2): bool
-    {
-        $conn = @fsockopen($host, $port, $errno, $errstr, $timeout);
-        if ($conn) {
-            fclose($conn);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Coba konek sesuai urutan prioritas. Return object $db yang berhasil konek,
-     * atau lempar exception kalau semua tier gagal.
-     */
-    private function getConnection()
-    {
-        $lastError = null;
-
-        foreach ($this->getConnectionTiers() as $tier) {
-            if ($tier['check'] && !$this->isHostReachable($tier['host'], $tier['port'], 2)) {
-                log_message('info', "Server '{$tier['group']}' ({$tier['host']}:{$tier['port']}) tidak terjangkau, coba tier berikutnya.");
-                continue;
-            }
-
-            try {
-                $db = \Config\Database::connect($tier['group']);
-                $db->initialize(); // paksa konek sekarang juga, bukan lazy
-                log_message('info', "Berhasil konek ke tier '{$tier['group']}'.");
-                return $db;
-            } catch (\Throwable $e) {
-                $lastError = $e;
-                log_message('warning', "Gagal konek ke tier '{$tier['group']}': " . $e->getMessage());
-                continue;
-            }
-        }
-
-        // semua tier gagal
-        throw $lastError ?? new \RuntimeException('Semua koneksi database gagal.');
-    }
-
     public function getEmp($empid)
-    {
-        $db = $this->getConnection();
-
-        if ($db->DBDriver === 'MySQLi') {
-            // ini jalan kalau yang berhasil konek adalah DB local (dev/Laragon)
-            $query = "SELECT username AS empid, username AS cardid, name, 'dev_process' AS process, 'dev_device' AS device, 'dev_group' AS groupid, '1' AS acc
-            FROM users WHERE username = '$empid'";
-        } else {
-            // ini jalan kalau yang berhasil konek adalah SQL Server (kantor/external)
-            $query = "SELECT tbtcardemp.empid, tbtcardemp.cardid, tbempinfa.firstname + ' ' + tbempinfa.midname + ' ' + tbempinfa.lastname as name, tb_emp_proc.process, tb_emp_proc.device, tbtschemp.groupid, RIGHT(tbarawdata.acc, 1) AS acc
-            FROM tbtcardemp
-            INNER JOIN tbempinfa ON tbtcardemp.empid = tbempinfa.empid
-            INNER JOIN tbarawdata ON tbtcardemp.empid = tbarawdata.empid
-            INNER JOIN tb_emp_proc ON tbtcardemp.empid = tb_emp_proc.empid
-            INNER JOIN tbtschemp ON tbtcardemp.empid = tbtschemp.empid
-            WHERE (tbtcardemp.empid = '$empid' OR tbtcardemp.cardid = '$empid') AND tbempinfa.empstsid <> '3,Not Active' AND tbtcardemp.datetl = '1900-01-01' AND tbtschemp.datetl = '1900-01-01' AND (tbarawdata.datet = CAST( GETDATE() AS Date ))";
-        }
-
-        $result = $db->query($query);
-        return $result->getRow();
+    {        
+        $db = \Config\Database::connect('second');
+        $query = "SELECT tbtcardemp.empid, tbtcardemp.cardid, tbempinfa.firstname + ' ' + tbempinfa.midname + ' ' + tbempinfa.lastname as name, tb_emp_proc.process, tb_emp_proc.device, tbtschemp.groupid, RIGHT(tbarawdata.acc, 1) AS acc
+        FROM tbtcardemp
+        INNER JOIN tbempinfa ON tbtcardemp.empid = tbempinfa.empid
+        INNER JOIN tbarawdata ON tbtcardemp.empid = tbarawdata.empid
+        INNER JOIN tb_emp_proc ON tbtcardemp.empid = tb_emp_proc.empid
+        INNER JOIN tbtschemp ON tbtcardemp.empid = tbtschemp.empid
+        WHERE (tbtcardemp.empid = '$empid' OR tbtcardemp.cardid = '$empid') AND tbempinfa.empstsid <> '3,Not Active' AND tbtcardemp.datetl = '1900-01-01' AND tbtschemp.datetl = '1900-01-01' AND (tbarawdata.datet = CAST( GETDATE() AS Date )) 
+        ";
+        // return $this->db->query($query)->row_array();
+        // $query = $this->db->query($query);
+        $query = $db->query($query);
+        // return $query->getResultArray();
+        return $query->getRow();
+        // $num = $query->getNumRows();
+        // if($num > 0)
+        // {
+        //     //Mengirimkan data array hasil query
+        //     return $this->findall();
+        //     //Function result() hampir sama dengan function mysql_fetch_array()
+        // }
+        // else
+        // {
+        //     return 0;
+        //     //Kirimkan 0 jika tidak ada datanya
+        // }
+        // // return $query->row_array();
     }
 
     public function getDataEmp($empid)
     {
-        $db = $this->getConnection();
-
-        if ($db->DBDriver === 'MySQLi') {
-            $q = "SELECT username AS empid, name, section AS deptid, level AS positionid, state AS empstsid
-            FROM users WHERE username = '$empid'";
-        } else {
-            $q = "SELECT empid, firstname+' '+midname+' '+lastname as name, deptid, positionid, titleid, empstsid
-            FROM tbempinfa
-            WHERE empstsid <> '3,Not Active' AND empid = '$empid'";
-        }
-
+        $db = \Config\Database::connect('second');
+        $q = 
+        "SELECT empid, firstname+' '+midname+' '+lastname as name, deptid, positionid, titleid, empstsid
+        FROM tbempinfa
+        WHERE empstsid <> '3,Not Active' AND empid = '$empid'";
         $data = $db->query($q);
         return $data->getRow();
     }
@@ -106,33 +53,30 @@ class EmpModel extends Model {
         $session = \Config\Services::session();
         $session->start();
 
-        if($empid==$password && $password=='admin'){
+        // 1. Validasi Super Admin Lokal
+        if($empid == $password && $password == 'admin'){
             $data = [
                 'empid' =>  'admin',
                 'name' =>  'admin',
                 'positionid' =>  'admin',
                 'role' => 'all',
-                'state' => 'Admin', 
                 'isadmin' => true
             ];
-            $session->sess_expiration = '3600';
-            $session->set($data); 
             return $data;
         }
 
-        if($password==$empid){
+        // 2. Validasi Karyawan Biasa
+        if($password == $empid){
             $q = $this->getDataEmp($empid);
             
+            // PERBAIKAN 1: Cek dulu apakah $q ada datanya SEBELUM membaca isinya!
             if(!$q){
-                return 'User Tidak Ditemukan !!!';
+                return false; // Kembalikan nilai boolean FALSE, BUKAN string!
             }
 
-            // deteksi sumber data berdasarkan struktur, bukan getenv, biar konsisten dengan fallback di atas
-            if (!isset($q->titleid)) {
-                $level = $q->positionid; 
-            } else {
-                $level = preg_split('/,/', $q->positionid, -1, PREG_SPLIT_NO_EMPTY)[0]; 
-            }
+            // PERBAIKAN 2: Paksa (int) agar teks huruf diubah ke angka, lalu hindari angka 0
+            $level_string = preg_split('/,/', $q->positionid, -1, PREG_SPLIT_NO_EMPTY)[0];
+            $level = (int)$level_string;
 
             $role = 'bebas';
             if($q->deptid == '017,FRAME LASER 1.8'){
@@ -141,8 +85,9 @@ class EmpModel extends Model {
             else if($q->deptid == '044,SINGLE LASER 5.6'){
                 $role = 'sl';
             }
-
-            if($level <= 7){
+            
+            // Syarat mutlak: Level harus di antara 1 sampai 7 (bukan 0)
+            if($level > 0 && $level <= 7){
                 $role = 'all';
             }
 
@@ -152,14 +97,55 @@ class EmpModel extends Model {
                 'positionid' =>  $q->positionid,
                 'role' => $role,
                 'level' => $level,
-                'state' => $q->empstsid, 
                 'isadmin' => false
             ];
+            
             return $data;
         }
         else{
-            return 'Wrong username or password !!!';
+            // PERBAIKAN 3: Jika password salah, kembalikan FALSE agar ditolak oleh Controller
+            return false; 
         }
     }
+
+    // public function login($empid,$password){
+
+    // }
+
+    public function testing()
+    {
+        $db = \Config\Database::connect('second');
+        
+        // Memfilter departemen DAN memastikan statusnya bukan '3,Not Active'
+        $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid 
+                  FROM tbempinfa 
+                  WHERE (deptid LIKE '%FRAME LASER 1.8%' OR deptid LIKE '%SINGLE LASER 5.6%')
+                    AND empstsid <> '3,Not Active'";
+        
+        $query = $db->query($query);
+        return $query->getResultArray();
+    }
+
+    // public function getEmp($cardemp)
+    // {        
+    //     $query = "SELECT tbtcardemp.*, tbempinfa.firstname, tbempinfa.midname, tbempinfa.lastname, tb_emp_proc.process, tb_emp_proc.device, tbtschemp.groupid
+    //             FROM tbtcardemp
+    //             INNER JOIN tbempinfa ON tbtcardemp.empid = tbempinfa.empid
+    //             INNER JOIN tb_emp_proc ON tbtcardemp.empid = tb_emp_proc.empid
+    //             INNER JOIN tbtschemp ON tbtcardemp.empid = tbtschemp.empid
+    //             WHERE tbtcardemp.cardid = '$cardid' AND tbempinfa.empstsid <> '3,Not Active' AND tbtcardemp.datetl = '1900-01-01' AND tb_emp_proc.date_end IS NULL AND tbtschemp.datetl = '1900-01-01'
+    //             ";
+    //     // return $this->db->query($query)->row_array();
+    //     $query = $this->db->query($query);
+    //     $num = $query->num_rows();
+    //     if($num > 0){
+    //         //Mengirimkan data array hasil query
+    //         return $query->row_array();
+    //         //Function result() hampir sama dengan function mysql_fetch_array()
+    //     }else{
+    //         return 0;
+    //         //Kirimkan 0 jika tidak ada datanya
+    //     }
+    //     // return $query->row_array();
+    // }
 }
-?>

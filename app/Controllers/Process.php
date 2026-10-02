@@ -25,12 +25,18 @@ class Process extends BaseController
 
     public function listProcess()
     {
-        $data = [
-            'title' => 'Process Data',
-            'alldata' => $this->ProcessModel->getAll($_GET['device'],$_GET['type'])
-        ];
-
-        echo json_encode($this->ProcessModel->getAll($_GET['device'],$_GET['type']));
+        error_reporting(0);
+        try {
+            // Mengambil get dengan aman agar tidak error jika nilainya kosong
+            $device = $this->request->getGet('device') ?? '';
+            $type = $this->request->getGet('type') ?? '';
+            
+            $data = $this->ProcessModel->getAll($device, $type);
+            return $this->response->setJSON($data);
+        } catch (\Throwable $th) {
+            // Jika tabel error/tidak ditemukan, kembalikan array kosong, bukan error 500
+            return $this->response->setJSON([]);
+        }
     }
 
     public function index()
