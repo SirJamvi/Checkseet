@@ -22,6 +22,7 @@ $routes->get('auth/cek_role', 'Auth::cek_role');
 // 2. CORE MODULES: PRODUCTION
 // ==========================================================
 $routes->get('/production', 'Production::index'); 
+$routes->get('/production/datatable', 'Production::datatable'); 
 $routes->get('/production/data','Production::dataProduction');
 $routes->get('/production/form','Production::formInputProduction');
 $routes->post('/production', 'Production::createProduction'); 
