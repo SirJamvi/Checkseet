@@ -106,6 +106,19 @@ class StartupModel extends Model
         }
     }
 
+    // Fungsi untuk mengambil data startup berdasarkan ID Mingguan
+    public function getByWeeklyId($weekly_id)
+    {
+        $sql = "SELECT DISTINCT s.id, `number`, s.created_at, `process`, d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `status`, `role`, `foreman`, `leader`, `supervisor`, p.name
+        FROM `startup` as s
+        INNER JOIN `proses` as p ON s.process=p.process_code 
+        INNER JOIN `device` as d ON p.device=d.code
+        WHERE s.weekly_id = '$weekly_id' AND s.par000='1'
+        ORDER BY s.created_at ASC";
+        
+        return $this->query($sql)->getResultArray();
+    }
+
     public function getLatestId()
     {
         $query = "SELECT `number` FROM startup ORDER BY `number` DESC LIMIT 1 ";

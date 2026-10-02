@@ -14,6 +14,7 @@ $routes->get('/login', 'Auth::index');
 $routes->post('/login', 'Auth::login');
 $routes->get('/logout', 'Auth::logout');
 $routes->get('/forbidden', 'Auth::forbidden');
+$routes->cli('cronjob/closeweeklydata', 'Cronjob::closeWeeklyData');
 
 $routes->get('auth/cek_role', 'Auth::cek_role');
 
@@ -70,6 +71,7 @@ $routes->get('/approve', 'Approval::index');
 $routes->get('/approve-form', 'Approval::formApproval');
 $routes->post('/approve', 'Approval::updateApproval');
 $routes->get('/approval/([a-zA-Z0-9]+)','Home::approval/$1');
+$routes->get('approval/detail_mingguan/(:num)', 'Approval::detail_mingguan/$1');
 
 // ==========================================================
 // 7. MASTER DATA: DEVICE

@@ -337,7 +337,6 @@ class PdfGenerator
                 <td style="width: 25%; text-align: right; vertical-align: top; border: none; padding: 0;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 8px;" border="1">
                         <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok / No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
-                        <tr><td style="text-align: left; padding: 2px;">Revisi</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($revisi) . '</td></tr>
                         <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($tglBerlaku) . '</td></tr>
                         ' . $kotakTtdHtml . '
                     </table>
