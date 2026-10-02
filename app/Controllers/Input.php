@@ -35,6 +35,7 @@ class Input extends BaseController
 
     public function index()
     {
+        error_reporting(0); // Tambahkan ini agar halaman utama tidak dilabeli 500
         $data = [
             'title' => 'Input | Startup Management'
         ];
@@ -43,6 +44,7 @@ class Input extends BaseController
         }
         return view('input', $data);
     }
+    
     public function formInputStartup()
     {
         // jika belum login tidak dapat membuka form startup

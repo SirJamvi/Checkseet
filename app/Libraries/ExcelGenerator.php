@@ -178,35 +178,6 @@ class ExcelGenerator
             }
         }
 
-        $theads = $table->getElementsByTagName('thead');
-        foreach ($theads as $thead) {
-            $headerTrs = $thead->getElementsByTagName('tr');
-            $dataHeaderTr = null;
-            $remainingRows = 0;
-            foreach ($headerTrs as $idx => $tr) {
-                $ths = [];
-                foreach ($tr->childNodes as $th) {
-                    if ($th instanceof \DOMElement && in_array(strtolower($th->tagName), ['th', 'td'])) $ths[] = $th;
-                }
-                if (count($ths) > 1) {
-                    $dataHeaderTr = $tr;
-                    $remainingRows = $headerTrs->length - $idx;
-                    break;
-                }
-            }
-
-            if ($dataHeaderTr && $remainingRows > 1) {
-                $ths = [];
-                foreach ($dataHeaderTr->childNodes as $th) {
-                    if ($th instanceof \DOMElement && in_array(strtolower($th->tagName), ['th', 'td'])) $ths[] = $th;
-                }
-                for ($i = 0; $i < count($ths) - 1; $i++) {
-                    $ths[$i]->setAttribute('rowspan', (string)$remainingRows);
-                }
-                $ths[count($ths) - 1]->setAttribute('rowspan', '1');
-            }
-        }
-
         $maxExistingCols = 0;
         $trs = iterator_to_array($table->getElementsByTagName('tr'));
         foreach ($trs as $tr) {

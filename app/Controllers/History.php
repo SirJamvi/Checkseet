@@ -34,6 +34,7 @@ class History extends BaseController
 
     public function index(): string
     {
+        error_reporting(0);
         $data = ['title' => 'History | Startup Management'];
         return view('history', $data);
     }
@@ -183,18 +184,28 @@ class History extends BaseController
         $lotno = $this->request->getGet('lotno') ?? '';
         $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+        try {
+            $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
-        $_SERVER['REQUEST_URI'] = 'exportExcel';
-        $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
-        try { 
-            $htmlString = view($viewPath, ['alldata' => $context['alldata']]); 
-        } catch (\Exception $e) { 
-            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+            $_SERVER['REQUEST_URI'] = 'exportExcel';
+            $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
+
+            // Bersihkan output yang mungkin sudah tercetak sebelum header file dikirim
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            $excelGen = new ExcelGenerator();
+            $excelGen->generate($htmlString, $context);
+        } catch (\Throwable $e) {
+            log_message('error', 'exportExcel gagal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            die("<h2>EXPORT EXCEL GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage())
+                . "</p><p><b>Lokasi:</b> " . esc($e->getFile()) . " (Baris: " . $e->getLine() . ")</p>");
         }
-
-        $excelGen = new ExcelGenerator();
-        $excelGen->generate($htmlString, $context);
     }
 
     public function exportPDF()
