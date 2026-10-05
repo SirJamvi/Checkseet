@@ -228,11 +228,14 @@
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
                 <?php
-                    if((string)$alldata[$i]['role']){
-                        echo '<td colspan="col">'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
+                    $roleKey = (string)$alldata[$i]['role'];
+                    // Tambahkan pengecekan: pastikan role tidak kosong, BUKAN strip (-), dan key-nya ada
+                    if ($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])) {
+                        echo '<td colspan="col">'. (string)$alldata[$i][$roleKey] . '</td>';
                     } 
-                    else{
-                        echo '<td>  </td>';
+                    else {
+                        // Jika kosong atau '-', cetak strip saja
+                        echo '<td colspan="col">-</td>';
                     }
                 ?>
             <?php } ?>
