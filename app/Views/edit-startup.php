@@ -14,7 +14,7 @@
   </section>
 
   <section class="container-fluid">
-    <form name="checksheet" action="<?php echo base_url();?>startup" method="POST">
+    <form name="checksheet" action="<?= base_url('startup/update'); ?>" method="POST">
       <?= csrf_field(); ?>
       <input type="hidden" name="type-input" value="manual">
 

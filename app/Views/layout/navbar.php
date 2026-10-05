@@ -21,16 +21,27 @@
           <a class="nav-link" href="<?php echo base_url();?>history"><i class="fas fa-history"></i> History</a>
         </li>
         <?php
-          // FIX: Gunakan strtolower agar kebal huruf besar/kecil, dan tambahkan isadmin
-          if(strtolower($session->get('state')) == 'approver' || strtolower($session->get('state')) == 'admin' || $session->get('isadmin')){
-            echo '<li class="nav-item">
-              <a class="nav-link" href="'.base_url().'approve"><i class="fas fa-thumbs-up"></i> Approve</a>
-            </li>';
-          }
-          else if(!$session->get('empid')){
-            echo '<li class="nav-item">
-              <a class="nav-link" href="'.base_url().'login"><i class="fas fa-sign-in-alt"></i> Login</a>
-            </li>';
+          // Cek jika user sudah login (punya empid)
+          if ($session->get('empid')) {
+              // Ambil raw string positionid dari session (misal: "14,Foreman (Prod.)" atau "18,Operator")
+              $position_string = (string)$session->get('positionid');
+              $is_admin = $session->get('isadmin');
+              
+              // Mengecek apakah ada kata "Operator" di dalam string jabatan (case-insensitive)
+              // Jika hasilnya !== false, berarti dia adalah operator.
+              $is_operator = (stripos($position_string, 'operator') !== false);
+
+              // Tampilkan menu Approve HANYA JIKA BUKAN Operator ATAU dia adalah Admin
+              if ( !$is_operator || $is_admin ) {
+                  echo '<li class="nav-item">
+                    <a class="nav-link" href="'.base_url().'approve"><i class="fas fa-thumbs-up"></i> Approve</a>
+                  </li>';
+              }
+          } else {
+              // Jika belum login, tampilkan tombol Login
+              echo '<li class="nav-item">
+                <a class="nav-link" href="'.base_url().'login"><i class="fas fa-sign-in-alt"></i> Login</a>
+              </li>';
           }
           
           if($session->get('isadmin')){

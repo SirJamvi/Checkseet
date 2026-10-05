@@ -63,6 +63,9 @@
 <script src="assets/js/dataTables.bootstrap4.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
+        // Cek apakah user adalah admin berdasarkan session
+        var isAdmin = <?= session()->get('isadmin') ? 'true' : 'false'; ?>;
+
         // Escape HTML agar data aman ditampilkan
         function esc(v) {
             return $('<div>').text(v == null ? '' : v).html();
@@ -119,7 +122,7 @@
             modal.find('.modal-body').html('<div id="loading">Loading...</div>');
 
             $.ajax({
-                url: "/productions/history/" + number,
+                url: "<?= base_url('productions/history'); ?>/" + number,
                 dataType: 'html',
                 success: function(data) {
                     modal.find('.modal-body').html(data);
@@ -131,16 +134,26 @@
             });
         });
 
-        $('#table-approval').on('click', '.edit-button', function() {
+        $('#table-approval').on('click', '.edit-button', function(e) {
+            if (!isAdmin) {
+                e.preventDefault();
+                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
+                return false;
+            }
             var number = $(this).data('number');
-            window.open("<?= base_url(); ?>production/edit/" + number, '_blank');
+            window.open("<?= base_url('production/edit'); ?>/" + number, '_blank');
         });
 
-        $('#table-approval').on('click', '.delete-button', function() {
+        $('#table-approval').on('click', '.delete-button', function(e) {
+            if (!isAdmin) {
+                e.preventDefault();
+                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
+                return false;
+            }
             var number = $(this).data('number');
             if (confirm('Apakah kamu yakin?')) {
                 $.ajax({
-                    url: '/production/' + number,
+                    url: "<?= base_url('production'); ?>/" + number,
                     type: 'DELETE',
                     success: function(result) {
                         alert('Berhasil menghapus');

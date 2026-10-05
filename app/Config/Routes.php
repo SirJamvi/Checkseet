@@ -42,6 +42,8 @@ $routes->get('/startup/edit/form','Startup::formEdit');
 $routes->get('/startup/edit/(:num)','Startup::edit/$1');
 $routes->get('/startup/history/(:num)', 'Startup::startupByNumber/$1');
 $routes->delete('/startup/(:num)','Startup::deleteStartup/$1');
+$routes->post('/startup/update', 'Startup::updateStartup'); // Jika pakai route biasa
+$routes->post('/startup/update/(:num)', 'Startup::updateStartup/$1'); // Jika pakai ID di URL
 
 // ==========================================================
 // 4. CORE MODULES: FOREGOING
@@ -70,9 +72,18 @@ $routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
 // ==========================================================
 $routes->get('/approve', 'Approval::index');
 $routes->get('/approve-form', 'Approval::formApproval');
-$routes->post('/approve', 'Approval::updateApproval');
-$routes->get('/approval/([a-zA-Z0-9]+)','Home::approval/$1');
-$routes->get('approval/detail_mingguan/(:num)', 'Approval::detail_mingguan/$1');
+
+// Rute Eksekusi Approve: Tangkap POST, PUT, dan PATCH, baik ada ID maupun tidak
+// Kita hilangkan /$1 agar tidak bentrok dengan public function updateApproval() yang tidak punya parameter
+$routes->match(['post', 'put', 'patch'], '/approve', 'Approval::updateApproval');
+$routes->match(['post', 'put', 'patch'], '/approve/(:any)', 'Approval::updateApproval');
+
+// Rute lainnya
+$routes->get('/approval/history/(:any)', 'Approval::approvalById/$1');
+$routes->get('/approval/weekly', 'Approval::weekly');
+$routes->post('/approval/processWeekly', 'Approval::processWeekly');
+$routes->get('/approval/detail_mingguan/(:num)', 'Approval::detail_mingguan/$1');
+$routes->get('/approval/([a-zA-Z0-9]+)', 'Home::approval/$1');
 
 // ==========================================================
 // 7. MASTER DATA: DEVICE

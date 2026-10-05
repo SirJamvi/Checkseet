@@ -1,5 +1,6 @@
+PS Microsoft.PowerShell.Core\FileSystem::\\192.168.132.22\www\checkseet> tree "\\192.168.132.22\www\checkseet\app" /F /A
 Folder PATH listing for volume www
-Volume serial number is 00000051 3C25:73BB
+Volume serial number is 00000095 3C25:73BB
 \\192.168.132.22\WWW\CHECKSEET\APP
 |   Common.php
 |   index.html
@@ -56,6 +57,7 @@ Volume serial number is 00000051 3C25:73BB
 |       Auth.php
 |       BaseController.php
 |       Cleansing.php
+|       Cronjob.php
 |       Device.php
 |       Foregoing.php
 |       History.php
@@ -78,6 +80,7 @@ Volume serial number is 00000051 3C25:73BB
 |   |       2026-09-17-012722_CreateUsersTable.php
 |   |       2026-09-18-034148_AddRevisiAndBerlakuToProses.php
 |   |       2026-09-18-055816_CreateMachineListTable.php
+|   |       2026-10-02-021152_CreateWeeklyApproval.php
 |   |       
 |   \---Seeds
 |           MachineListSeeder.php
@@ -106,6 +109,7 @@ Volume serial number is 00000051 3C25:73BB
 |       ProcessModel.php
 |       ProductionModel.php
 |       StartupModel.php
+|       WeeklyApprovalModel.php
 |       
 +---ThirdParty
 \---Views
@@ -131,6 +135,8 @@ Volume serial number is 00000051 3C25:73BB
     |   startup.php
     |   upload_form.php
     |   upload_success.php
+    |   weekly_approval.php
+    |   weekly_detail.php
     |   welcome_message.php
     |   
     +---errors

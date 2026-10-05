@@ -4,14 +4,14 @@
 <main>
 <link rel="stylesheet" href="assets/css/jquery-ui.css">
 <link rel="stylesheet" href="assets/css/global.css">
-<!-- Tambahkan CSS Select2 -->
+<!-- CSS Select2 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-<script src="assets/js/jquery-3.7.1.js"></script>
+<!-- jQuery hanya dimuat SATU kali -->
 <script src="assets/js/jquery-3.7.1.min.js"></script>
 <script src="assets/js/jquery-ui.js"></script>
 <script src="assets/js/form/test.js"></script>
-<!-- Tambahkan JS Select2 -->
+<!-- JS Select2 -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <?= $this->include('layout/navbar'); ?>
@@ -26,13 +26,13 @@
 
       <div class="card shadow mb-5">
         <div class="card-header py-3">
-          <h3 class="m-0 font-weight-bold">Input Checksheet</h5>
+          <h3 class="m-0 font-weight-bold">Input Checksheet</h3>
         </div>
         <input type="hidden" name="cnt-error-input" id="cnt-error-input" value=0>
 
         <div class="card-body">
           <div class="row">
-            
+
             <div class="col-md-6">
               <!-- Date input automatic -->
               <div class="mb-3 row">
@@ -41,7 +41,7 @@
                   <input type="date" class="form-control" id="date" name="date" value="<?php echo date('Y-m-d');?>">
                 </div>
               </div>
-    
+
               <!-- Device input -->
               <div class="mb-3 row">
                 <label for="device-txt" class="col-sm-2 col-form-label">Device</label>
@@ -75,7 +75,7 @@
                   </select>
                 </div>
               </div>
-    
+
               <!-- DocType -->
               <div class="mb-3 row">
                 <label for="process-txt" class="col-sm-2 col-form-label">Doc. Type</label>
@@ -88,7 +88,7 @@
                   </select>
                 </div>
               </div>
-    
+
               <!-- Process of Device -->
               <div class="mb-3 row">
                 <label for="process-txt" class="col-sm-2 col-form-label">Process</label>
@@ -97,7 +97,7 @@
                   </select>
                 </div>
               </div>
-    
+
               <!-- Model name -->
               <div class="mb-3 row">
                 <label for="model-txt" class="col-sm-2 col-form-label">Model Name</label>
@@ -105,7 +105,7 @@
                   <input type="text" class="form-control" id="model-txt" name="model-txt" onkeyup="this.value = this.value.toUpperCase()" autofocus>
                 </div>
               </div>
-    
+
               <!-- Doc No -->
               <div class="mb-3 row">
                 <label for="machno" class="col-sm-2 col-form-label">Doc. No</label>
@@ -137,7 +137,7 @@
                 </div>
               </div>
             </div>
-    
+
             <div class="col-md-6">
               <!-- Lot Number -->
               <div class="mb-3 row">
@@ -146,8 +146,8 @@
                   <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" onkeyup="this.value = this.value.toUpperCase()">
                 </div>
               </div>
-    
-              <!-- Machine Number diubah jadi Select2 -->
+
+              <!-- Machine Number (Select2) -->
               <div class="mb-3 row">
                 <label for="machno-txt" class="col-sm-2 col-form-label">Machine Number <span style="color:red;">*</span></label>
                 <div class="col-sm-6">
@@ -157,29 +157,27 @@
                 </div>
               </div>
 
-              <!-- Menambahkan Parameter Revisi -->
+              <!-- Parameter Revisi -->
               <div class="mb-3 row">
                 <label for="revisi-txt" class="col-sm-2 col-form-label">Revisi</label>
                 <div class="col-sm-6">
                   <input type="text" class="form-control" id="revisi-txt" name="revisi-txt" readonly>
                 </div>
               </div>
-    
+
               <div class="mb-3 row">
                 <label for="empid-txt" class="col-sm-2 col-form-label">Operator</label>
                 <div class="col-sm-6">
                   <div class="input-group mb-1" id="empid-div1">
                     <span class="input-group-text" id="basic-addon1">Emp. ID :</span>
-                    <input type="number" class="form-control" id="empid-txt" value="<?= $session->get('empid') ?>" name="empid-txt" readonly required>           
+                    <input type="number" class="form-control" id="empid-txt" value="<?= $session->get('empid') ?>" name="empid-txt" readonly required>
                   </div>
                   <div class="input-group mb-1">
                     <span class="input-group-text" id="basic-addon3">Name--:</span>
-                    <!-- Ambil langsung dari session agar tidak kosong -->
                     <input type="text" class="form-control" id="name-txt" name="name-txt" value="<?= $session->get('name') ?>" readonly>
                   </div>
                   <div class="input-group mb-1">
                     <span class="input-group-text" id="basic-addon-pos">Position:</span>
-                    <!-- Ambil langsung dari session agar tidak kosong -->
                     <input type="text" class="form-control" id="position-txt" name="position-txt" value="<?= $session->get('positionid') ?>" readonly>
                   </div>
                   <div class="input-group mb-1">
@@ -193,33 +191,33 @@
                   <input type="hidden" name="name-operator" id="name-operator">
                 </div>
               </div>
-    
-              <div class="form-control alert-success invisible" id="empid-lbl" name="empid-lbl" >
-                <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Tidak ditemukan data kehadiran untuk ID karyawan di atas. Mohon ketik dengan benar. Jika jadwal Anda saat ini tidak sesuai, silakan hubungi bagian GA/P atau masukkan shift & group di atas secara manual.</span>
-              </div> 
-    
+
+              <div class="form-control alert-success invisible" id="empid-lbl" name="empid-lbl">
+                <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Data shift/group untuk ID karyawan di atas tidak ditemukan atau belum lengkap. Silakan isi shift &amp; group di atas secara manual, atau hubungi bagian GA/P jika jadwal Anda tidak sesuai.</span>
+              </div>
+
             </div>
-    
+
           </div>
-          <?php 
-            if (session()->getFlashdata('message')){ 
-              echo '<p id=msgsuccess class="invisible">' . session()->getFlashdata('message').'</p>'; 
-            }else{ 
-              echo '<p id=msgsuccess class="invisible">Kosong</p>'; ;}
+          <?php
+            if (session()->getFlashdata('message')){
+              echo '<p id=msgsuccess class="invisible">' . session()->getFlashdata('message').'</p>';
+            }else{
+              echo '<p id=msgsuccess class="invisible">Kosong</p>';
+            }
           ?>
           <div id="form-input" class="">
-            
+
           </div>
           <div class="d-flex justify-content-center">
-            <!-- Tombol Submit Diberi Penjaga checkSubmit() -->
             <button type="submit" class="btn btn-lg btn-primary btn-block mx-auto" id="submit" onclick="return checkSubmit();">Submit</button>
           </div>
-          
+
         </div>
       </div>
 </div>
-  </form>  
-  
+  </form>
+
 </main>
 <script>
 $(document).ready(function()
@@ -243,66 +241,59 @@ $(document).ready(function()
         updateDocNo();
         updateMachine();
     });
-    
+
     $('#type-process-txt').change(function(){
         document.getElementById("form-action").action = "/checkseet/" + document.getElementById("type-process-txt").value;
     });
-    
-    // Auto-fill dipanggil saat load
+
+    // Auto-fill shift & group saat halaman dimuat (tetap bisa diedit)
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
 });
 
-// FUNGSI PENJAGA FORM DAN PEMBUNUH GHOST INPUT
+// FUNGSI PENJAGA FORM
 function checkSubmit() {
     var machno = $('#machno-txt').val();
     if (!machno || machno === "") {
         alert("GAGAL: Machine Number WAJIB dipilih atau diisi sebelum Submit!");
-        return false; 
+        return false;
     }
     $('#form-input input[name="machno-txt"]').remove();
     return confirm('Apakah kamu yakin ingin menyimpan data ini?');
 }
 
 // FUNGSI AUTO-FILL SHIFT & GROUP
+// Hanya mengisi field yang masih kosong, sehingga input manual user tidak tertimpa
 function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
     var empid = $.trim($(empIdTag).val());
-    if (empid.length > 0) {
-        $.ajax({
-            url: "<?php echo base_url();?>home/ajaxAutofill",
-            dataType:'JSON',
-            data:"empid-txt=" + empid,
-            success: function(data) {
-                $(shiftTag).val(data.acc);           
-                $(groupTag).val(data.groupid);
-                $('#' + empIdlTag).removeClass("visible").addClass("invisible"); 
-            },
-            error: function(xhr) {
-                // TRIK PAKSA BACA DATA (Abaikan Error 500)
-                if (xhr.responseText) {
-                    try {
-                        var data = JSON.parse(xhr.responseText);
-                        if(data && data.acc) {
-                            $(shiftTag).val(data.acc);           
-                            $(groupTag).val(data.groupid);
-                            $('#' + empIdlTag).removeClass("visible").addClass("invisible"); 
-                            return; // Jika berhasil dipaksa, hentikan error
-                        }
-                    } catch(e) {}
+    if (!empid) return;
+
+    var warn = $('#' + empIdlTag);
+
+    $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empid })
+        .done(function (d) {
+            if (d.found && d.acc && d.groupid) {
+                if (!$(shiftTag).val()) $(shiftTag).val(d.acc);
+                if (!$(groupTag).val()) $(groupTag).val(d.groupid);
+                warn.removeClass('visible').addClass('invisible');
+            } else {
+                if (d.found) { // terisi sebagian
+                    if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
+                    if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
                 }
-                // Jika benar-benar kosong
-                $('#' + empIdlTag).removeClass("invisible").addClass("visible"); 
-                $(shiftTag).val('');            
-                $(groupTag).val('');
+                warn.removeClass('invisible').addClass('visible');
             }
+        })
+        .fail(function (xhr) {
+            console.error('autofill gagal', xhr.status, xhr.responseText);
+            warn.removeClass('invisible').addClass('visible');
         });
-    }
 }
 
 // FUNGSI UPDATE DEVICE & PROCESS
 function updateDevice() {
     var docType = $('#type-process-txt').val();
     var device = $('#device-txt').val();
-    
+
     if(device === '-' || docType === '-') {
         $('#process-txt').empty().append('<option value="-">choose process</option>');
         return;
@@ -315,7 +306,6 @@ function updateDevice() {
             populateProcess(data);
         },
         error: function(xhr) {
-            // TRIK PAKSA BACA DATA (Abaikan Error 500)
             if (xhr.responseText) {
                 try {
                     var data = JSON.parse(xhr.responseText);
@@ -328,7 +318,7 @@ function updateDevice() {
 
 function populateProcess(data) {
     var processDropdown = $('#process-txt');
-    processDropdown.empty(); 
+    processDropdown.empty();
     if(data && data.length > 0) {
         $.each(data, function(index, item) {
             processDropdown.append(new Option(item.name, item.process_code));
@@ -345,7 +335,7 @@ function populateProcess(data) {
 function updateMachine() {
     var processCode = document.getElementById("process-txt").value;
     var machineSelect = $('#machno-txt');
-    
+
     machineSelect.empty().append('<option value="">-- Ketik atau Pilih Machine Number --</option>');
 
     if(!processCode || processCode === '-' || processCode === 'null'){
@@ -360,7 +350,6 @@ function updateMachine() {
             populateMachine(data, machineSelect);
         },
         error: function(xhr) {
-            // TRIK PAKSA BACA DATA MESIN (Abaikan Error 500)
             if(xhr.responseText) {
                 try {
                     var data = JSON.parse(xhr.responseText);
@@ -389,45 +378,44 @@ function populateMachine(data, machineSelect) {
 function updateInput() {
     let typeProcess, device, process;
     process = document.getElementById("process-txt").value;
-    
+
     if(!process || process === 'null' || process === '-'){
         var form_input = document.getElementById('form-input');
         $('#submit').hide();
         form_input.innerHTML = "";
-        return; 
+        return;
     }
 
     device = process.split("-")[0];
     let revField = document.getElementById('revisi-txt');
-    
+
     if(process.split("-")[1] == 'p'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
         typeProcess="production";
-        if (revField) revField.value = "6"; 
+        if (revField) revField.value = "6";
     }
     else if(process.split("-")[1] == 'f'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
         typeProcess="foregoing";
-        if (revField) revField.value = "6"; 
+        if (revField) revField.value = "6";
     }
     else{
         document.getElementById('model-txt').disabled = true;
         document.getElementById('lotno-txt').disabled = true;
         typeProcess="startup";
-        if (revField) revField.value = "4"; 
+        if (revField) revField.value = "4";
     }
-    
-    // Arahkan langsung ke folder checkseet
+
     document.getElementById("form-action").action = "/checkseet/" + typeProcess;
-    
+
     let cnt_error = document.getElementById("cnt-error-input");
     let submit_button = document.getElementById("submit");
     submit_button.disabled = false;
     cnt_error.value = 0;
-    
-    updateSetting(process); 
+
+    updateSetting(process);
 
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/form?device="+device+"&process="+process, true);

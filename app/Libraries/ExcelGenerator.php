@@ -78,6 +78,10 @@ class ExcelGenerator
         $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
         
+        // PERBAIKAN: SETTING AGAR TABEL RATA TENGAH DI KERTAS
+        $sheet->getPageSetup()->setHorizontalCentered(true);
+        $sheet->getPageSetup()->setVerticalCentered(true);
+        
         $headerEndRow = $tableStartRow + $headerRowCount - 1;
         $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $headerEndRow);
         $lastIdentityColLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
@@ -118,10 +122,16 @@ class ExcelGenerator
 
         $fixedWidth = 7 + (($identityCols - 1) * 20); 
         $dataColCount = $lastColIndex - ($identityCols + 1);
-        $dataWidth = 12; 
-        if ($dataColCount > 0) {
-            $remainingWidth = 135 - $fixedWidth; 
-            $dataWidth = max(10, min(25, $remainingWidth / $dataColCount));
+        
+        // PERBAIKAN: SETTING LEBAR KOLOM IDEAL (RASIO EMAS 14.5 UNTUK STARTUP)
+        if ($typeProcess === 'startup') {
+            $dataWidth = 14.5;
+        } else {
+            $dataWidth = 12; 
+            if ($dataColCount > 0) {
+                $remainingWidth = 135 - $fixedWidth; 
+                $dataWidth = max(10, min(25, $remainingWidth / $dataColCount));
+            }
         }
 
         for ($col = $identityCols + 2; $col <= $lastColIndex; $col++) {
@@ -129,6 +139,7 @@ class ExcelGenerator
         }
 
         if ($typeProcess !== 'startup') {
+            // LOGIKA PRODUCTION (TIDAK DISENTUH SAMA SEKALI)
             $totalExcelWidth = $fixedWidth + ($dataColCount * $dataWidth);
             $totalWidthPts = $totalExcelWidth * 6;
             $scaleFactor = 796 / $totalWidthPts; 
@@ -145,8 +156,9 @@ class ExcelGenerator
                 $sheet->getRowDimension($r)->setRowHeight($idealRowHeight);
             }
         } else {
+            // PERBAIKAN: SETTING TINGGI BARIS IDEAL (RASIO EMAS 31 UNTUK STARTUP)
             for ($r = $tableStartRow; $r <= $lastRow; $r++) {
-                $sheet->getRowDimension($r)->setRowHeight(25);
+                $sheet->getRowDimension($r)->setRowHeight(31);
             }
         }
 
@@ -243,7 +255,8 @@ class ExcelGenerator
                 $noteTr->parentNode->insertBefore($opTr, $noteTr);
 
                 $appTr = $doc->createElement('tr');
-                $tdAppLbl = $doc->createElement('td', 'Approved by');
+                // PERBAIKAN: UBAH LABEL 'Approved by' MENJADI 'Checked by'
+                $tdAppLbl = $doc->createElement('td', 'Checked by');
                 $tdAppLbl->setAttribute('colspan', (string)$identityCols);
                 $appTr->appendChild($tdAppLbl);
 
@@ -294,7 +307,6 @@ class ExcelGenerator
                 
                 $isHeader = ($tag === 'th' || $inThead);
                 
-                // PEMBERSIH SPASI DAN ENTER (AUTO-TRIM)
                 $textContent = trim(preg_replace('/\s+/', ' ', $cell->textContent));
                 
                 $origins[$currentRow][$col] = ['value' => $textContent, 'isHeader' => $isHeader, 'colspan' => $colspan, 'rowspan' => $rowspan];

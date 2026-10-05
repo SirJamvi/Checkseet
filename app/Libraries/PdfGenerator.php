@@ -17,12 +17,23 @@ class PdfGenerator
         libxml_clear_errors();
         
         $xpath = new \DOMXPath($doc); 
+        
+        // Coba cari table dengan id table1 dulu
         $table = $xpath->query("//table[@id='table1']")->item(0);
         
-        if ($table === null) die("Error: <table id=\"table1\"> tidak ditemukan di view!");
+        // Jika tidak ada, ambil saja table HTML pertama (indeks 0) yang ditemukan di view
+        if ($table === null) {
+            $table = $xpath->query("//table")->item(0);
+        }
+        
+        if ($table === null) {
+            die("Error: Tidak ada elemen <table> sama sekali yang ditemukan di view untuk dijadikan PDF!");
+        }
 
-        if ($typeProcess === 'startup') {
-            $this->injectApprover($doc, $table, $namaApprover, $alldata ?? []);
+        if (isset($typeProcess) && $typeProcess === 'startup') {
+            $namaApp = isset($namaApprover) ? $namaApprover : '';
+            $allD = isset($alldata) ? $alldata : [];
+            $this->injectApprover($doc, $table, $namaApp, $allD);
         }
 
         $dataColsCount = count($alldata ?? []);
@@ -32,10 +43,13 @@ class PdfGenerator
             $cols = 0;
             foreach ($tr->childNodes as $td) {
                 if ($td instanceof \DOMElement && in_array(strtolower($td->tagName), ['td','th'])) {
-                    $cols += (int)($td->getAttribute('colspan') ?: 1);
+                    $colspan = $td->getAttribute('colspan');
+                    $cols += $colspan ? (int)$colspan : 1;
                 }
             }
-            if ($cols > $maxExistingCols) $maxExistingCols = $cols;
+            if ($cols > $maxExistingCols) {
+                $maxExistingCols = $cols;
+            }
         }
         $identityColCount = max(1, $maxExistingCols - $dataColsCount);
 
@@ -43,7 +57,7 @@ class PdfGenerator
         $headerRowCount = $this->countHeaderRows($grid);
 
         $colChunks = [];
-        if ($typeProcess === 'startup') {
+        if (isset($typeProcess) && $typeProcess === 'startup') {
             $totalDataCols = $grid['totalCols'] - $identityColCount; 
             $start = $identityColCount + 1;
             $endTotal = $grid['totalCols'];
@@ -57,19 +71,29 @@ class PdfGenerator
             $colChunks = [[$identityColCount + 1, $grid['totalCols']]];
         }
 
-        $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+        $kopSuratHtml = $this->buildKopSuratHtml(
+            $namaProduk ?? '', 
+            $judulProses ?? '', 
+            $noDok ?? '', 
+            $machNo ?? '', 
+            $tglBerlaku ?? '', 
+            $namaApprover ?? '', 
+            $revisi ?? '', 
+            $typeProcess ?? ''
+        );
 
         $pagesHtml = '';
         $chunkCount = 0;
         
         foreach ($colChunks as $cRange) {
             $pageBreakStyle = ($chunkCount > 0) ? ' style="page-break-before: always;"' : '';
-            $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $typeProcess);
+            $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $typeProcess ?? '');
             $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
             $chunkCount++;
         }
 
-        $cssScale = ($typeProcess === 'startup') ? '
+        $isStartup = (isset($typeProcess) && $typeProcess === 'startup');
+        $cssScale = $isStartup ? '
             @page { size: A4 landscape; margin-top: 130px; margin-bottom: 10px; margin-left: 15px; margin-right: 15px; }
             body { font-family: Arial, Helvetica, sans-serif; font-size: 6.5px; }
             header { position: fixed; top: -115px; left: 0px; right: 0px; height: 105px; }
@@ -100,7 +124,8 @@ class PdfGenerator
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $fileName = 'Report_' . strtoupper($process) . '_' . date('Ymd_Hi') . '.pdf';
+        $procName = isset($process) ? strtoupper($process) : 'REPORT';
+        $fileName = 'Report_' . $procName . '_' . date('Ymd_Hi') . '.pdf';
         $dompdf->stream($fileName, ["Attachment" => true]);
         exit();
     }
@@ -128,9 +153,13 @@ class PdfGenerator
         if ($noteTr) {
             $getVal = function($item, $keys) {
                 if (is_array($item)) {
-                    foreach($keys as $k) if (isset($item[$k]) && $item[$k] !== '') return $item[$k];
+                    foreach($keys as $k) {
+                        if (isset($item[$k]) && $item[$k] !== '') return $item[$k];
+                    }
                 } elseif (is_object($item)) {
-                    foreach($keys as $k) if (isset($item->$k) && $item->$k !== '') return $item->$k;
+                    foreach($keys as $k) {
+                        if (isset($item->$k) && $item->$k !== '') return $item->$k;
+                    }
                 }
                 return '-';
             };
@@ -190,7 +219,6 @@ class PdfGenerator
                 
                 $isHeader = ($tag === 'th' || $inThead);
                 
-                // PEMBERSIH SPASI DAN ENTER (AUTO-TRIM)
                 $textContent = trim(preg_replace('/\s+/', ' ', $cell->textContent));
                 
                 $origins[$currentRow][$col] = ['value' => $textContent, 'isHeader' => $isHeader, 'colspan' => $colspan, 'rowspan' => $rowspan];
@@ -233,7 +261,8 @@ class PdfGenerator
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         for ($c = $startCol; $c <= $endCol; $c++) {
-            $w = ($typeProcess === 'startup') ? '4%'; 
+            // FIX: Operator ternary disempurnakan dengan dua hasil (true : false)
+            $w = ($typeProcess === 'startup') ? '4%' : '12%'; 
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         $colgroup .= '</colgroup>';

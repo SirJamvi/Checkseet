@@ -43,13 +43,19 @@ class Production extends BaseController
      */
     public function datatable()
     {
-        $r     = $this->request;
-        $order = $r->getGet('order')[0] ?? ['column' => 1, 'dir' => 'desc'];
+        $r = $this->request;
+        
+        // Perbaikan: Cek array order dan search agar tidak memicu error offset null
+        $orderData = $r->getGet('order');
+        $order = (!empty($orderData) && is_array($orderData)) ? $orderData[0] : ['column' => 1, 'dir' => 'desc'];
+        
+        $searchData = $r->getGet('search');
+        $searchValue = (!empty($searchData) && isset($searchData['value'])) ? trim($searchData['value']) : '';
 
         $res = $this->ProductionModel->getDatatable(
             max((int) $r->getGet('start'), 0),
             min(max((int) $r->getGet('length'), 1), 100),
-            trim($r->getGet('search')['value'] ?? ''),
+            $searchValue,
             (int) $order['column'],
             $order['dir']
         );
@@ -140,7 +146,7 @@ class Production extends BaseController
         return view('/layout/' . $device . '/history/production/' . $process, ['alldata' => $rows]);
     }
 
-        public function dataProduction()
+    public function dataProduction()
     {
         // Lepas lock session: endpoint ini hanya membaca data,
         // jadi request paralel tidak perlu saling menunggu.
@@ -181,8 +187,6 @@ class Production extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'dataProduction gagal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
 
-            // DEBUG SEMENTARA: status 200 supaya pesan tampil di tabel.
-            // Setelah penyebab ketemu, hapus setStatusCode(200) dan tampilkan pesan umum saja.
             return $this->response
                 ->setStatusCode(200)
                 ->setBody(
@@ -210,32 +214,34 @@ class Production extends BaseController
             return redirect()->to(base_url('login'));
         }
 
-        $g = fn($k) => $this->request->getVar($k);
+        // PERBAIKAN: Mengganti arrow function dengan variabel biasa agar kompatibel dengan PHP lama
+        $req = $this->request;
 
-        $cntInput = $g('cnt-proses') ? (int) $g('cnt-proses') : 1;
-        $number   = $g('number-edit') ? $g('number-edit') : ($this->ProductionModel->getLatestId() + 1);
+        $cntInput = $req->getVar('cnt-proses') ? (int) $req->getVar('cnt-proses') : 1;
+        $number   = $req->getVar('number-edit') ? $req->getVar('number-edit') : ($this->ProductionModel->getLatestId() + 1);
 
         // Field umum yang sama untuk semua blok
         $common = [
             'number'  => $number,
-            'device'  => $g('device-txt'),
-            'model'   => $g('model-txt'),
-            'process' => $g('process-txt'),
-            'lotno'   => $g('lotno-txt'),
-            'machno'  => $g('machno-txt'),
-            'empid'   => $g('empid-txt'),
-            'group'   => $g('group-txt'),
-            'shift'   => $g('shift-txt'),
-            'name'    => $g('name-txt') ?: "",
-            'empid2'  => $g('empid2-txt') ?: ($g('empid-txt') ?: ""),
-            'group2'  => $g('group2-txt') ?: ($g('group-txt') ?: ""),
-            'shift2'  => $g('shift2-txt') ?: ($g('shift-txt') ?: ""),
-            'name2'   => $g('name2-txt') ?: ($g('name-txt') ?: ""),
+            'device'  => $req->getVar('device-txt'),
+            'model'   => $req->getVar('model-txt'),
+            'process' => $req->getVar('process-txt'),
+            'lotno'   => $req->getVar('lotno-txt'),
+            'machno'  => $req->getVar('machno-txt'),
+            'empid'   => $req->getVar('empid-txt'),
+            'group'   => $req->getVar('group-txt'),
+            'shift'   => $req->getVar('shift-txt'),
+            'name'    => $req->getVar('name-txt') ?: "",
+            'empid2'  => $req->getVar('empid2-txt') ?: ($req->getVar('empid-txt') ?: ""),
+            'group2'  => $req->getVar('group2-txt') ?: ($req->getVar('group-txt') ?: ""),
+            'shift2'  => $req->getVar('shift2-txt') ?: ($req->getVar('shift-txt') ?: ""),
+            'name2'   => $req->getVar('name2-txt') ?: ($req->getVar('name-txt') ?: ""),
         ];
 
         // Blok A sampai E (par001 = 1 sampai 5)
         $suffixes  = ['a', 'b', 'c', 'd', 'e'];
         $lastBlock = count($suffixes);
+        $result    = false;
 
         foreach ($suffixes as $i => $suffix) {
             $blockNo = $i + 1;
@@ -259,9 +265,13 @@ class Production extends BaseController
 
             // Berhenti di blok sesuai cnt-proses, atau di blok terakhir (E)
             if ($cntInput === $blockNo || $blockNo === $lastBlock) {
-                session()->setFlashdata('message', $result ? 'Input success!' : 'Input Failed!');
-                return redirect()->to(base_url('production'));
+                break;
             }
         }
+
+        session()->setFlashdata('message', $result ? 'Input success!' : 'Input Failed!');
+
+        // PERBAIKAN: Redirect eksplisit ke URL form secara manual agar tidak error HTTP_REFERER
+        return redirect()->to(base_url('input'));
     }
 }
