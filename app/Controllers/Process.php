@@ -43,7 +43,8 @@ class Process extends BaseController
     {
         $data = [
             'title' => 'Process Data',
-            'alldata' => $this->ProcessModel->getAllData()
+            'alldata' => $this->ProcessModel->getAllData(),
+            'listDevice' => $this->DeviceModel->getAll()
         ];
         return view("process",$data);
     }
@@ -51,7 +52,8 @@ class Process extends BaseController
     public function addProcess()
     {
         $data = [
-            'title' => 'Add Process'
+            'title' => 'Add Process',
+            'listDevice' => $this->DeviceModel->getAll()
         ];
 
         return view("layout/add-process",$data);

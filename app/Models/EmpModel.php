@@ -106,13 +106,13 @@ class EmpModel extends Model
 
     public function testing()
     {
-        $db = \Config\Database::connect('second');
+    $db = \Config\Database::connect('second');
 
-        $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid
-                  FROM tbempinfa
-                  WHERE (deptid LIKE '%FRAME LASER 1.8%' OR deptid LIKE '%SINGLE LASER 5.6%')
-                    AND empstsid <> '3,Not Active'";
+    // Menggunakan LIKE untuk mencocokkan teks Permanent dan Contract
+    $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid
+              FROM tbempinfa
+              WHERE (empstsid LIKE '%Permanent%' OR empstsid LIKE '%Contract%')";
 
-        return $db->query($query)->getResultArray();
+    return $db->query($query)->getResultArray();
     }
 }

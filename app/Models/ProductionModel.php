@@ -91,8 +91,7 @@ class ProductionModel extends Model
             $builder->where('machno', $machno);
         }
 
-        return $builder->orderBy('machno', 'ASC')
-            ->orderBy('created_at', 'ASC')
+        return $builder->orderBy('created_at', 'ASC')
             ->get()
             ->getResultArray();
     }
@@ -108,7 +107,15 @@ class ProductionModel extends Model
 
     public function getByNumber($number)
     {
-        return $this->query("SELECT * FROM production WHERE `number` = ?", [$number])->getResultArray();
+        // Perbaikan: Lakukan JOIN ke tabel proses dan device untuk mendapatkan nama spesifik
+        $query = "SELECT pr.*, p.name AS process_name, d.name AS device_name, p.docno 
+                  FROM production AS pr
+                  LEFT JOIN proses AS p ON pr.process = p.process_code
+                  LEFT JOIN device AS d ON pr.device = d.code
+                  WHERE pr.`number` = ? 
+                  ORDER BY pr.`par001` ASC";
+                  
+        return $this->query($query, [$number])->getResultArray();
     }
 
     public function getApprovalData($status = "PENDING")

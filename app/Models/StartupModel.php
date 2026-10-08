@@ -147,7 +147,7 @@ class StartupModel extends Model
         if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'"; }
         if ($machno !== '' && $machno !== 'ALL') {$sql .= " AND s.machno = '$machno'"; }
 
-        $sql .= " ORDER BY s.machno ASC, s.created_at ASC";
+        $sql .= " ORDER BY s.created_at ASC";
         
         return $this->query($sql)->getResultArray();
     }
@@ -191,13 +191,14 @@ class StartupModel extends Model
 
     public function getByNumber($number)
     {
-        $query = "SELECT *
-        FROM startup as s
-        INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code
-        WHERE 
-        `number` = $number 
-        ORDER BY `par000`";
+        // PERBAIKAN: Tambahkan JOIN ke tabel proses dan device untuk mendapatkan nama yang benar
+        $query = "SELECT s.*, p.name as process_name, d.name as device_name, p.docno 
+                  FROM startup as s
+                  LEFT JOIN proses as p ON s.process = p.process_code
+                  LEFT JOIN device as d ON p.device = d.code
+                  WHERE s.`number` = ? 
+                  ORDER BY s.`par000` ASC";
         
-        return $this->query($query)->getResultArray();
+        return $this->query($query, [$number])->getResultArray();
     }
 }

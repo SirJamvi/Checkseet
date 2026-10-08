@@ -107,18 +107,29 @@ class Production extends BaseController
 
     public function formEdit()
     {
-        $device  = $this->safeSegment($this->request->getGet('device'));
-        $process = $this->safeSegment($this->request->getGet('process'));
         $number  = $this->request->getGet('number');
+        $alldata = $this->ProductionModel->getByNumber($number);
+
+        if (empty($alldata)) {
+            return "<div class='alert alert-warning'>Data tidak ditemukan.</div>";
+        }
+
+        // Mengambil data device dan process langsung dari database untuk menghindari error URL
+        $device  = $alldata[0]['device'];
+        $process = $alldata[0]['process'];
 
         $data = [
             'title'   => 'History | Startup Management',
-            'alldata' => $this->ProductionModel->getByNumber($number),
+            'alldata' => $alldata,
             'process' => $process,
             'number'  => $number,
         ];
 
-        return view('/layout/' . $device . '/input/production/' . $process, $data);
+        try {
+            return view('/layout/' . $device . '/input/production/' . $process, $data);
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, form checklist (".$process.") belum tersedia atau file view tidak ditemukan.</div>";
+        }
     }
 
     public function deleteProduction($number)
