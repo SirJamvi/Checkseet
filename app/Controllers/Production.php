@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\ProductionModel;
+use App\Models\LogActivityModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Production extends BaseController

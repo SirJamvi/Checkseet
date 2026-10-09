@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\StartupModel;
+use App\Models\LogActivityModel;
 use App\Models\WeeklyApprovalModel;
 use App\Models\ProductionModel; // Pastikan model ini dipanggil karena dipakai di approvalById
 

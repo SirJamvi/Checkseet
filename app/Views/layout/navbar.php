@@ -1,3 +1,18 @@
+<style>
+  @media all and (min-width: 992px) {
+    .hover-dropdown .dropdown-menu {
+      display: none;
+      margin-top: 0;
+      transition: all 0.3s ease;
+    }
+    .hover-dropdown:hover .dropdown-menu {
+      display: block;
+    }
+  }
+  .dropdown-item:hover {
+    background-color: #f8f9fa;
+  }
+</style>
 <nav class="navbar navbar-expand-lg bg-light bg-gradient sticky-top shadow-sm mb-3">
   <div class="container-fluid">
     <a class="navbar-brand item-center" href="/">
@@ -45,14 +60,15 @@
           }
           
           if($session->get('isadmin')){
-            echo '<li class="nav-item">
-              <a class="nav-link" href="'.base_url().'production"><i class="fas fa-industry"></i> Production</a>
-            </li>';
-            echo '<li class="nav-item">
-              <a class="nav-link" href="'.base_url().'startup"><i class="fas fa-rocket"></i> Startup</a>
-            </li>';
-            echo '<li class="nav-item">
-              <a class="nav-link" href="'.base_url().'foregoing"><i class="fas fa-industry"></i> Foregoing</a>
+            echo '<li class="nav-item dropdown hover-dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownProcess" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-layer-group"></i> Operations
+              </a>
+              <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarDropdownProcess">
+                <li><a class="dropdown-item py-2" href="'.base_url().'production"><i class="fas fa-industry text-primary me-2"></i> Production</a></li>
+                <li><a class="dropdown-item py-2" href="'.base_url().'startup"><i class="fas fa-rocket text-success me-2"></i> Startup</a></li>
+                <li><a class="dropdown-item py-2" href="'.base_url().'foregoing"><i class="fas fa-clipboard-check text-warning me-2"></i> Foregoing</a></li>
+              </ul>
             </li>';
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url().'log-activity"><i class="fas fa-clipboard-list"></i> Log Activity</a>
