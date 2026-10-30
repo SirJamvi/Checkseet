@@ -125,14 +125,31 @@ class StartupModel extends Model
         )->getResultArray();
     }
 
-    public function markRejectRequested($number)
+    // Fungsi Baru: Mengambil daftar checksheet yang berstatus "Request Reject"
+    public function getRequestRejectList()
+    {
+        return $this->db->table('startup as s')
+            ->select('s.number, s.process, s.device, s.machno, s.lotno, s.empid, s.name, s.reject_reason, s.created_at, p.name as process_name')
+            ->join('proses as p', 's.process = p.process_code', 'left')
+            ->where('s.status', 'Request Reject')
+            ->where('s.par000', '1')
+            ->orderBy('s.created_at', 'DESC')
+            ->get()->getResultArray();
+    }
+
+    // Update Fungsi: Menyimpan alasan reject dan mengganti status
+    public function markRejectRequested($number, $reason = '')
     {
         $builder = $this->db->table(
             $this->table
         );
         return $builder
             ->where('number', (int) $number)
-            ->update(['edit_status' => 1]);
+            ->update([
+                'status' => 'Request Reject', // Diubah dari status awal agar tertangkap oleh notifikasi
+                'reject_reason' => $reason,
+                'edit_status' => 1
+            ]);
     }
 
     public function updateApproval(
@@ -152,7 +169,7 @@ class StartupModel extends Model
         }
 
         $curStatus = (string) ($data['status'] ?? '');
-        $allowedStatuses = ['Pending', 'Reject', '', '-'];
+        $allowedStatuses = ['Pending', 'Reject', 'Request Reject', '', '-']; // Request Reject dimasukkan
         if (!in_array($curStatus, $allowedStatuses, true)) {
             return false;
         }
@@ -517,7 +534,12 @@ class StartupModel extends Model
         . "%') AND s.process LIKE '%"
         . $process
         . "%' AND s.par000 = 1
-        ORDER BY CASE WHEN s.status = 'Reject' THEN 0 WHEN s.status = 'Pending' OR s.status IS NULL OR s.status = '' THEN 1 ELSE 2 END, s.created_at DESC";
+        ORDER BY CASE 
+            WHEN s.status = 'Request Reject' THEN 0 
+            WHEN s.status = 'Reject' THEN 1 
+            WHEN s.status = 'Pending' OR s.status IS NULL OR s.status = '' THEN 2 
+            ELSE 3 
+        END, s.created_at DESC";
 
         return $this->query(
             $query
