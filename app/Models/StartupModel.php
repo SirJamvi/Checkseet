@@ -18,7 +18,8 @@ class StartupModel extends Model
         'par037','par038','par039','par040','par041','par042','par043','par044',
         'status','role','foreman','leader','supervisor','name', 'docno', 'revisi',
         'par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 
-        'par021_unit', 'weekly_id', 'edit_status', 'unlocked_by', 'reject_reason', 'reject_by', 'reject_date'
+        'par021_unit', 'weekly_id', 'edit_status', 'unlocked_by', 'reject_reason', 'reject_by', 'reject_date',
+        'created_at'
     ];
 
     public function __construct()
@@ -274,8 +275,12 @@ class StartupModel extends Model
             ->getRowArray();
 
         if ($prosesMaster) {
-            $data['par041'] = $prosesMaster['revisi'];
-            $data['par042'] = $prosesMaster['berlaku'];
+            if (!isset($data['par041']) || $data['par041'] === null || $data['par041'] === '') {
+                $data['par041'] = $prosesMaster['revisi'];
+            }
+            if (!isset($data['par042']) || $data['par042'] === null || $data['par042'] === '') {
+                $data['par042'] = $prosesMaster['berlaku'];
+            }
             $data['docno'] = $prosesMaster['docno'];
             $data['revisi'] = $prosesMaster['revisi'];
         }
@@ -304,6 +309,7 @@ class StartupModel extends Model
             }
             $data['edit_status'] = 0;
             $rowId = $result->id;
+            unset($data['created_at']);
             $this->update(
                 $rowId,
                 $data

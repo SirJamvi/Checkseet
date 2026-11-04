@@ -55,6 +55,8 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, positionTag, empIdlTag)
                 // Cek jika API mengirimkan position
                 if(data.position) {
                     $(positionTag).val(data.position);
+                } else if(data.positionname) {
+                    $(positionTag).val(data.positionname);
                 }
                 
                 const element = document.getElementById(empIdlTag);  

@@ -185,8 +185,12 @@ class ForegoingModel extends Model
         $prosesMaster = $db->table('proses')->where('process_code', $data['process'])->get()->getRowArray();
 
         if ($prosesMaster) {
-            $data['par041'] = $prosesMaster['revisi'];
-            $data['par042'] = $prosesMaster['berlaku'];
+            if (!isset($data['par041']) || $data['par041'] === null || $data['par041'] === '') {
+                $data['par041'] = $prosesMaster['revisi'];
+            }
+            if (!isset($data['par042']) || $data['par042'] === null || $data['par042'] === '') {
+                $data['par042'] = $prosesMaster['berlaku'];
+            }
             $data['docno']  = $prosesMaster['docno'];
             $data['revisi'] = $prosesMaster['revisi'];
         }

@@ -76,36 +76,60 @@ class Home extends BaseController
     }
 
     public function ajaxAutofill()
-{
-    $empid = trim((string) $this->request->getGet('empid-txt'));
+    {
+        $empid = trim((string) $this->request->getGet('empid-txt'));
 
-    if ($empid === '') {
-        return $this->response->setJSON(['found' => false]);
-    }
+        if ($empid === '') {
+            return $this->response->setJSON(['found' => false]);
+        }
 
-    try {
-        $q = $this->EmpModel->getEmp($empid);
-    } catch (\Throwable $e) {
-        log_message('error', 'ajaxAutofill gagal: ' . $e->getMessage());
-        return $this->response->setStatusCode(500)->setJSON([
-            'found'   => false,
-            'message' => 'DB error',
-            'debug'   => $e->getMessage()   // HAPUS baris ini setelah masalah selesai
+        if (strtolower($empid) === 'admin') {
+            return $this->response->setJSON([
+                'found'        => true,
+                'empid'        => 'admin',
+                'name'         => 'Administrator',
+                'position'     => 'admin',
+                'positionid'   => 'admin',
+                'positionname' => 'admin',
+                'groupid'      => 'ADMIN',
+                'acc'          => 'A',
+            ]);
+        }
+
+        try {
+            $q = $this->EmpModel->getEmp($empid);
+        } catch (\Throwable $e) {
+            log_message('error', 'ajaxAutofill gagal: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'found'   => false,
+                'message' => 'DB error',
+                'debug'   => $e->getMessage()
+            ]);
+        }
+
+        if (!$q) {
+            return $this->response->setJSON(['found' => false]);
+        }
+
+        $position = $q->positionid ?? '';
+        if (empty($position)) {
+            $empData = $this->EmpModel->getDataEmp($empid);
+            if ($empData && !empty($empData->positionid)) {
+                $position = $empData->positionid;
+            }
+        }
+
+        return $this->response->setJSON([
+            'found'        => true,
+            'empid'        => $q->empid,
+            'name'         => $q->name,
+            'position'     => $position,
+            'positionid'   => $position,
+            'positionname' => $position,
+            'groupid'      => $q->groupid ?? '',
+            'acc'          => $q->acc ?? '',
         ]);
     }
-
-    if (!$q) {
-        return $this->response->setJSON(['found' => false]);
-    }
-
-    return $this->response->setJSON([
-        'found'   => true,
-        'empid'   => $q->empid,
-        'name'    => $q->name,
-        'groupid' => $q->groupid ?? '',
-        'acc'     => $q->acc ?? '',
-    ]);
-}
 
     public function data()
     {

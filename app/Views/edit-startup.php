@@ -116,7 +116,7 @@
 
       <!-- Tombol Submit di Tengah -->
       <div class="w-100 text-center d-flex justify-content-center my-4" style="width: 100%; text-align: center;">
-        <button type="submit" class="btn btn-lg btn-primary mx-auto" id="submit" style="display: block; margin: 0 auto; min-width: 140px;" onclick="return confirm('Apakah kamu yakin?');">Submit</button>
+        <button type="submit" class="btn btn-lg btn-primary mx-auto" id="submit" style="display: block; margin: 0 auto; min-width: 140px;" onclick="return checkEditSubmit();">Submit</button>
       </div>
     </form>
   </section>
@@ -183,6 +183,17 @@
         }
     }
 
+    function checkEditSubmit()
+    {
+        $('input[id$="_val"]').each(function() {
+            var baseId = this.id.replace(/_val$/, '');
+            if (typeof combineData === 'function') {
+                combineData(baseId);
+            }
+        });
+        return confirm('Apakah kamu yakin ingin menyimpan perubahan?');
+    }
+
     function injectForm()
     {
         const xhr = new XMLHttpRequest();
@@ -207,6 +218,6 @@
         xhr.send(null);
     }
   </script>
-  <script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
+  <script src="<?= base_url('assets/js/form/test.js?v=' . (file_exists(FCPATH . 'assets/js/form/test.js') ? filemtime(FCPATH . 'assets/js/form/test.js') : '20261103')); ?>"></script>
 </main>
 <?= $this->endSection(); ?>

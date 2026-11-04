@@ -287,6 +287,8 @@ function validateDynamicUnit(id) {
 
     // Jika data-min dan data-max tersedia, panggil changeRange
     if (min !== null && max !== null) {
+        inputElem.setAttribute('min', min);
+        inputElem.setAttribute('max', max);
         changeRange(id + '_val', min, max);
     }
 }

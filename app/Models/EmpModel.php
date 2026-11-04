@@ -22,6 +22,7 @@ class EmpModel extends Model
                 LTRIM(RTRIM(
                     ISNULL(i.firstname, '') + ' ' + ISNULL(i.midname, '') + ' ' + ISNULL(i.lastname, '')
                 )) AS name,
+                i.positionid,
                 s.groupid,
                 (
                     SELECT TOP 1 RIGHT(a.acc, 1)
@@ -52,6 +53,40 @@ class EmpModel extends Model
         return $db->query($q, [$empid])->getRow();
     }
 
+    public static function determineDepartmentCategory(?string $deptid): string
+    {
+        if (empty($deptid)) {
+            return 'OTHER';
+        }
+        $d = strtoupper(trim($deptid));
+
+        // QC / QA keywords
+        if (
+            strpos($d, 'QUALITY') !== false ||
+            strpos($d, 'QC') !== false ||
+            strpos($d, 'QA') !== false
+        ) {
+            return 'QC';
+        }
+
+        // Production keywords (FL, SL, Opto, Compound, Production, dll)
+        if (
+            strpos($d, 'PRODUCTION') !== false ||
+            strpos($d, 'PRODUKSI') !== false ||
+            strpos($d, 'FRAME LASER') !== false ||
+            strpos($d, 'SINGLE LASER') !== false ||
+            strpos($d, 'CHIP MAKING') !== false ||
+            strpos($d, 'HOLOGRAM') !== false ||
+            strpos($d, 'LED') !== false ||
+            strpos($d, 'REGULATOR') !== false ||
+            strpos($d, 'OPTO') !== false
+        ) {
+            return 'PRODUCTION';
+        }
+
+        return 'OTHER';
+    }
+
     public function login($empid, $password)
     {
         $session = \Config\Services::session();
@@ -64,6 +99,9 @@ class EmpModel extends Model
                 'name'       => 'admin',
                 'positionid' => 'admin',
                 'role'       => 'all',
+                'deptid'     => 'ADMIN',
+                'department' => 'ADMIN',
+                'level'      => 99,
                 'isadmin'    => true
             ];
         }
@@ -79,11 +117,15 @@ class EmpModel extends Model
             $level_string = preg_split('/,/', $q->positionid, -1, PREG_SPLIT_NO_EMPTY)[0];
             $level = (int) $level_string;
 
+            $department = self::determineDepartmentCategory($q->deptid);
+
             $role = 'bebas';
-            if ($q->deptid == '017,FRAME LASER 1.8') {
+            if (strpos(strtoupper((string)$q->deptid), 'FRAME LASER') !== false) {
                 $role = 'fl';
-            } elseif ($q->deptid == '044,SINGLE LASER 5.6') {
+            } elseif (strpos(strtoupper((string)$q->deptid), 'SINGLE LASER') !== false) {
                 $role = 'sl';
+            } elseif ($department === 'QC') {
+                $role = 'qc';
             }
 
             // Level harus di antara 1 sampai 7 (bukan 0)
@@ -95,6 +137,8 @@ class EmpModel extends Model
                 'empid'      => $empid,
                 'name'       => $q->name,
                 'positionid' => $q->positionid,
+                'deptid'     => $q->deptid,
+                'department' => $department,
                 'role'       => $role,
                 'level'      => $level,
                 'isadmin'    => false

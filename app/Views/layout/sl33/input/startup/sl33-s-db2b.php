@@ -164,14 +164,14 @@
         <tr>
             <td >@ Dispense Time : 0.01 ~ 0.15 s (10 ~ 150 ms)</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange2('par018',0.001,0.15,10,150)" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange2('par018',0.001,0.15,10,150)" placeholder="" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
             </td>
         </tr>
 
         <tr>
             <td >* Suction force : kurang dari 1/6 dari posisi closed <br> (putaran berlawanan arah jarum jam)</td>
             <td >
-                <input class="form-control" type="text" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input class="form-control" type="text" placeholder="" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
             </td>
         </tr>
 

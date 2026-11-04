@@ -18,44 +18,52 @@
       </div>
 
       <div class="card-body">
+        
+        <!-- SAMAKAN ALERT PERINGATAN DENGAN HALAMAN INPUT -->
+        <div class="alert alert-danger shadow-sm border-0 mb-4" role="alert" style="border-left: 5px solid #dc3545; background-color: #fff5f5;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger me-3"></i>
+                <div>
+                    <h6 class="alert-heading font-weight-bold mb-1 text-danger">PERINGATAN PENTING!</h6>
+                    <p class="mb-0 text-dark small">Harap pastikan isian <b>Tanggal Input</b> dan pilihan <b>Shift Karyawan (A / B / C)</b> sudah benar sebelum submit. Kesalahan pada data ini dapat menyebabkan form hilang dari jadwal produksi Anda.</p>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
           <div class="col-md-6">
-            <!-- Date input automatic -->
             <div class="mb-3 row">
               <label for="date" class="col-sm-2 col-form-label">Date</label>
               <div class="col-sm-6">
-                <input type="text" class="form-control-plaintext" id="date" name="date" value="<?php echo date('Y-m-d');?>" readonly>
+                <!-- Lock data tanpa css custom agar natural seperti view input -->
+                <input type="text" class="form-control" id="date" name="date" value="<?php echo date('Y-m-d');?>" readonly>
               </div>
             </div>
 
-            <!-- Device input -->
             <div class="mb-3 row">
               <label for="device-txt" class="col-sm-2 col-form-label">Device</label>
               <div class="col-sm-6">
-                <input type="hidden" class="form-control" id="device-txt" name="device-txt" value="<?php echo $alldata[0]["device"] ?? '' ?>" >
-                <input type="text" class="form-control" id="device-txt-name" name="device-txt-name" value="<?php echo $alldata[0]["device_name"] ?? $alldata[0]["device"] ?? '' ?>" >
+                <input type="hidden" id="device-txt" name="device-txt" value="<?php echo $alldata[0]["device"] ?? '' ?>" >
+                <input type="text" class="form-control" id="device-txt-name" name="device-txt-name" value="<?php echo $alldata[0]["device_name"] ?? $alldata[0]["device"] ?? '' ?>" readonly>
               </div>
             </div>
 
-            <!-- Process of Device -->
             <div class="mb-3 row">
               <label for="process-txt" class="col-sm-2 col-form-label">Process</label>
               <div class="col-sm-6">
-                <input type="hidden" class="form-control" id="process-txt" name="process-txt" value="<?php echo $alldata[0]["process"] ?? '' ?>" >
-                <input type="text" class="form-control" id="process-txt-name" name="process-txt-name" value="<?php echo $alldata[0]["process_name"] ?? $alldata[0]["name"] ?? $alldata[0]["process"] ?? '' ?>" >
+                <input type="hidden" id="process-txt" name="process-txt" value="<?php echo $alldata[0]["process"] ?? '' ?>" >
+                <input type="text" class="form-control" id="process-txt-name" name="process-txt-name" value="<?php echo $alldata[0]["process_name"] ?? $alldata[0]["name"] ?? $alldata[0]["process"] ?? '' ?>" readonly>
               </div>
             </div>
 
-            <!-- Model name -->
             <div class="mb-3 row">
               <label for="model-txt" class="col-sm-2 col-form-label">Model Name</label>
               <div class="col-sm-6">
-                <input type="hidden" class="form-control" id="model-txt" name="model-txt" onkeyup="this.value = this.value.toUpperCase()" value="<?php echo $alldata[0]["model"] ?? '' ?>" >
-                <input type="text" class="form-control" id="model-txt-name" name="model-txt-name" onkeyup="this.value = this.value.toUpperCase()" value="<?php echo $alldata[0]["model"] ?? '' ?>" >
+                <input type="hidden" id="model-txt" name="model-txt" value="<?php echo $alldata[0]["model"] ?? '' ?>" >
+                <input type="text" class="form-control" id="model-txt-name" name="model-txt-name" value="<?php echo $alldata[0]["model"] ?? '' ?>" readonly>
               </div>
             </div>
 
-            <!-- Doc No -->
             <div class="mb-3 row">
               <label for="machno" class="col-sm-2 col-form-label">Doc. No</label>
               <div class="col-sm-6">
@@ -65,59 +73,70 @@
           </div>
 
           <div class="col-md-6">
-            <!-- Lot Number -->
             <div class="mb-3 row">
               <label for="lotno-txt" class="col-sm-2 col-form-label">Lot Number</label>
               <div class="col-sm-6">
-                <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" onkeyup="this.value = this.value.toUpperCase()" value="<?php echo $alldata[0]["lotno"] ?? '' ?>" >
+                <!-- Lot & Machine di Complete dibuat readonly karena hanya melanjutkan -->
+                <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" value="<?php echo $alldata[0]["lotno"] ?? '' ?>" readonly>
               </div>
             </div>
 
             <div class="mb-3 row">
               <label for="machno-txt" class="col-sm-2 col-form-label">Machine Number</label>
               <div class="col-sm-6">
-                <input type="text" class="form-control" id="machno-txt" name="machno-txt" onkeyup="this.value = this.value.toUpperCase()" value="<?php echo $alldata[0]["machno"] ?? '' ?>" >
+                <input type="text" class="form-control" id="machno-txt" name="machno-txt" value="<?php echo $alldata[0]["machno"] ?? '' ?>" readonly>
               </div>
             </div>
 
             <div class="mb-3 row">
               <?php
                 $empid = $session->get('empid');
+                $nameSession = $session->get('name') ?? '';
+                $posSession  = $session->get('positionid') ?? '';
                 if(empty($alldata[0]["empid2"])){
+                  // BLOK 1: OPERATOR FINISH BELUM ADA (Kasus Form Biasa)
                   $html = <<< "EOT"
                     <label for="empid-txt" class="col-sm-2 col-form-label">Operator</label>
                       <div class="col-sm-6">
                         <div class="input-group mb-1" id="empid-div1">
                           <span class="input-group-text" id="basic-addon1">Emp. ID :</span>
-                          <input type="text" class="form-control" value="$empid" id="empid-txt" name="empid-txt" onkeyup="empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','#position-txt','empid-lbl')" onkeydown="return (event.keyCode!=13);" placeholder="Masukkan EmpID dengan 6 digit" required>            
+                          <input type="text" class="form-control" value="$empid" id="empid-txt" name="empid-txt" readonly required>            
                         </div>
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon2">Name---:</span>
-                          <input type="text" class="form-control" id="name-txt" name="name-txt" placeholder="Masukkan nama">
+                          <input type="text" class="form-control" value="$nameSession" id="name-txt" name="name-txt" readonly>
                         </div>
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon3">Position:</span>
-                          <input type="text" class="form-control" id="position-txt" name="position-txt" placeholder="Masukkan posisi">
+                          <input type="text" class="form-control" value="$posSession" id="position-txt" name="position-txt" readonly>
                         </div>
-                        <div class="input-group mb-1">
-                          <span class="input-group-text" id="basic-addon4">Shift----:</span>
-                          <input type="number" class="form-control" id="shift-txt" name="shift-txt" placeholder="1 atau 2 atau 3">
+                        
+                        <div class="input-group mb-1 border rounded" style="border-color: #dc3545 !important; border-width: 2px !important;">
+                            <span class="input-group-text text-danger font-weight-bold" id="basic-addon4" style="background-color: #fff5f5;">Shift----:</span>
+                            <select class="form-control font-weight-bold" id="shift-txt" name="shift-txt" required>
+                                <option value="">Pilih Shift (Wajib)</option>
+                                <option value="A">A (Pagi)</option>
+                                <option value="B">B (Sore)</option>
+                                <option value="C">C (Malam)</option>
+                            </select>
                         </div>
+
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon5">Group---:</span>
-                          <input type="text" class="form-control" id="group-txt" name="group-txt" placeholder="Contoh: 1S2GW1">
+                          <input type="text" class="form-control" id="group-txt" name="group-txt" placeholder="Contoh: 1S2GW1" onkeyup="this.value = this.value.toUpperCase()">
                         </div>
                         <input type="hidden" name="name-operator" id="name-operator">
                       </div>
                     </div>
           
                     <div class="form-control alert-success invisible" id="empid-lbl" name="empid-lbl" >
-                      <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Tidak ditemukan data kehadiran untuk ID karyawan di atas. Mohon ketik dengan benar. Jika jadwal Anda saat ini tidak sesuai, silakan hubungi bagian GA/P atau masukkan shift & group di atas secara manual.</span>
+                      <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Data shift/group untuk ID karyawan di atas tidak ditemukan atau belum lengkap. Silakan isi shift & group di atas secara manual, atau hubungi bagian GA/P jika jadwal Anda tidak sesuai.</span>
                     </div> 
                   EOT;
                   echo $html;
                 }
                 else{
+                  // BLOK 2: KASUS COMPLETED FORM DENGAN OPERATOR FINISH
                   $empid=$alldata[0]['empid'] ?? '';
                   $name=$alldata[0]['name'] ?? '';
                   $shift=$alldata[0]['shift'] ?? '';
@@ -127,35 +146,53 @@
                   $shift2=$alldata[0]['shift2'] ?? '';
                   $group2=$alldata[0]['group2'] ?? '';
                   
+                  // Operator 1 harus readonly mutlak di blok Complete, sementara Dropdown kita berikan attribut default agar shiftnya terpilih
+                  $selA = ($shift === 'A' || $shift == '1') ? 'selected' : '';
+                  $selB = ($shift === 'B' || $shift == '2') ? 'selected' : '';
+                  $selC = ($shift === 'C' || $shift == '3') ? 'selected' : '';
+                  
+                  // Sama untuk Operator 2 Dropdown
+                  $sel2A = ($shift2 === 'A' || $shift2 == '1') ? 'selected' : '';
+                  $sel2B = ($shift2 === 'B' || $shift2 == '2') ? 'selected' : '';
+                  $sel2C = ($shift2 === 'C' || $shift2 == '3') ? 'selected' : '';
+
                   $html = <<< "EOT"
                     <label for="empid-txt" class="col-sm-2 col-form-label">Operator Start</label>
                       <div class="col-sm-6">
                         <div class="input-group mb-1" id="empid-div1">
                           <span class="input-group-text" id="basic-addon1">Emp. ID :</span>
-                          <input type="text" value="$empid" class="form-control" id="empid-txt" name="empid-txt" onkeyup="empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','#position-txt','empid-lbl')" onkeydown="return (event.keyCode!=13);" placeholder="Masukkan EmpID dengan 6 digit" required>            
+                          <input type="text" value="$empid" class="form-control" id="empid-txt" name="empid-txt" readonly required>            
                         </div>
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon2">Name---:</span>
-                          <input type="text" value="$name" class="form-control" id="name-txt" name="name-txt" placeholder="Masukkan nama">
+                          <input type="text" value="$name" class="form-control" id="name-txt" name="name-txt" readonly>
                         </div>
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon3">Position:</span>
-                          <input type="text" class="form-control" id="position-txt" name="position-txt" placeholder="Masukkan posisi">
+                          <input type="text" class="form-control" id="position-txt" name="position-txt" readonly>
                         </div>
-                        <div class="input-group mb-1">
-                          <span class="input-group-text" id="basic-addon4">Shift----:</span>
-                          <input type="number" value="$shift" class="form-control" id="shift-txt" name="shift-txt" placeholder="1 atau 2 atau 3">
+
+                        <div class="input-group mb-1 border rounded" style="border-color: #dc3545 !important; border-width: 2px !important;">
+                            <span class="input-group-text text-danger font-weight-bold" id="basic-addon4" style="background-color: #fff5f5;">Shift----:</span>
+                            <!-- Dibuat readonly untuk Operator Start saat Edit/Complete -->
+                            <select class="form-control font-weight-bold" id="shift-txt" name="shift-txt" required style="pointer-events:none; background-color:#e9ecef;">
+                                <option value="A" $selA>A (Pagi)</option>
+                                <option value="B" $selB>B (Sore)</option>
+                                <option value="C" $selC>C (Malam)</option>
+                            </select>
                         </div>
+
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon5">Group---:</span>
-                          <input type="text" value="$group" class="form-control" id="group-txt" name="group-txt" placeholder="Contoh: 1S2GW1">
+                          <!-- Dibekukan untuk Operator Start -->
+                          <input type="text" value="$group" class="form-control" id="group-txt" name="group-txt" readonly>
                         </div>
                         <input type="hidden" name="name-operator" id="name-operator">
                       </div>
                     </div>
           
                     <div class="form-control alert-success invisible" id="empid-lbl" name="empid-lbl" >
-                      <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Tidak ditemukan data kehadiran untuk ID karyawan di atas. Mohon ketik dengan benar. Jika jadwal Anda saat ini tidak sesuai, silakan hubungi bagian GA/P atau masukkan shift & group di atas secara manual.</span>
+                      <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Data shift/group untuk ID karyawan di atas tidak ditemukan atau belum lengkap. Silakan isi shift & group di atas secara manual, atau hubungi bagian GA/P jika jadwal Anda tidak sesuai.</span>
                     </div> 
 
                     <div class="mb-3 row">
@@ -163,30 +200,38 @@
                       <div class="col-sm-6">
                         <div class="input-group mb-1" id="empid-div2">
                           <span class="input-group-text" id="basic-addon1">Emp. ID :</span>
-                          <input type="text" value="$empid2" class="form-control" id="empid2-txt" name="empid2-txt" onkeyup="empAuto('#empid2-txt','#shift2-txt','#group2-txt','#name2-txt','#position2-txt','empid-lbl2')" onkeydown="return (event.keyCode!=13);" placeholder="Masukkan EmpID dengan 6 digit">            
+                          <!-- Input EmpID Operator Finish bisa diinput (Autofill trigger onkeyup) -->
+                          <input type="number" value="$empid2" class="form-control" id="empid2-txt" name="empid2-txt" onkeyup="empAuto('#empid2-txt','#shift2-txt','#group2-txt','#name2-txt','#position2-txt','empid-lbl2')" onkeydown="return (event.keyCode!=13);" placeholder="Ketik 6 digit EmpID">            
                         </div>
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon2">Name---:</span>
-                          <input type="text" value="$name2" class="form-control" id="name2-txt" name="name2-txt" placeholder="Masukkan nama">          
+                          <input type="text" value="$name2" class="form-control" id="name2-txt" name="name2-txt" readonly>          
                         </div>
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon3">Position:</span>
-                          <input type="text" class="form-control" id="position2-txt" name="position2-txt" placeholder="Masukkan posisi">
+                          <input type="text" class="form-control" id="position2-txt" name="position2-txt" readonly>
                         </div>
-                        <div class="input-group mb-1">
-                          <span class="input-group-text" id="basic-addon4">Shift----:</span>
-                          <input type="number" value="$shift2" class="form-control" id="shift2-txt" name="shift2-txt" placeholder="1 atau 2 atau 3">
+                        
+                        <div class="input-group mb-1 border rounded" style="border-color: #dc3545 !important; border-width: 2px !important;">
+                            <span class="input-group-text text-danger font-weight-bold" id="basic-addon4" style="background-color: #fff5f5;">Shift----:</span>
+                            <select class="form-control font-weight-bold" id="shift2-txt" name="shift2-txt" required>
+                                <option value="">Pilih Shift (Wajib)</option>
+                                <option value="A" $sel2A>A (Pagi)</option>
+                                <option value="B" $sel2B>B (Sore)</option>
+                                <option value="C" $sel2C>C (Malam)</option>
+                            </select>
                         </div>
+
                         <div class="input-group mb-1">
                           <span class="input-group-text" id="basic-addon5">Group---:</span>
-                          <input type="text" value="$group2" class="form-control" id="group2-txt" name="group2-txt" placeholder="Contoh: 1S2GW1">
+                          <input type="text" value="$group2" class="form-control" id="group2-txt" name="group2-txt" placeholder="Contoh: 1S2GW1" onkeyup="this.value = this.value.toUpperCase()">
                         </div>
                         <input type="hidden" name="name-operator2" id="name-operator2">
                       </div>
                     </div>
           
                     <div class="form-control alert-success invisible" id="empid-lbl2" name="empid-lbl2" >
-                      <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Tidak ditemukan data kehadiran untuk ID karyawan di atas. Mohon ketik dengan benar. Jika jadwal Anda saat ini tidak sesuai, silakan hubungi bagian GA/P atau masukkan shift & group di atas secara manual.</span>
+                      <span style="color:#dc143c;text-align:justify;">Perhatian!<br>Data shift/group untuk ID karyawan di atas tidak ditemukan atau belum lengkap. Silakan isi shift & group di atas secara manual, atau hubungi bagian GA/P jika jadwal Anda tidak sesuai.</span>
                     </div>
                   EOT;
                   echo $html;
@@ -201,9 +246,7 @@
             }
           ?>
 
-          <!-- Input Form inject using javascript -->
           <div id="modal" class=""></div>
-
         </div>
 
         <div class="w-100 text-center d-flex justify-content-center my-4" style="width: 100%; text-align: center;">
@@ -212,23 +255,84 @@
         
       </div>
     </div>
-
   </div>
 </form>
-  <link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css'); ?>">
-  <link rel="stylesheet" href="<?= base_url('assets/css/global.css'); ?>">
-  <script src="<?= base_url('assets/js/jquery-3.7.1.js'); ?>"></script>
-  <script src="<?= base_url('assets/js/jquery-3.7.1.min.js'); ?>"></script>
-  <script src="<?= base_url('assets/js/jquery-ui.js'); ?>"></script>
-  <script src="<?= base_url('assets/js/edit.js?v=' . time()); ?>"></script>
-  <script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
-  <script>
-    $(document).ready(function() {
+
+<link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css'); ?>">
+<link rel="stylesheet" href="<?= base_url('assets/css/global.css'); ?>">
+<script src="<?= base_url('assets/js/jquery-3.7.1.js'); ?>"></script>
+<script src="<?= base_url('assets/js/jquery-3.7.1.min.js'); ?>"></script>
+<script src="<?= base_url('assets/js/jquery-ui.js'); ?>"></script>
+<script src="<?= base_url('assets/js/edit.js?v=' . time()); ?>"></script>
+<script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
+<script>
+$(document).ready(function() {
+    $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
+    $(document).ajaxComplete(function() {
         $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
-        $(document).ajaxComplete(function() {
-            $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
-        });
     });
-  </script>
+
+    var empStart = $('#empid-txt').val();
+    if(empStart && empStart !== '') {
+        $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empStart })
+            .done(function (d) {
+                if (d.found) {
+                    if (d.name && (!$("#name-txt").val() || $("#name-txt").val() === '-')) $("#name-txt").val(d.name);
+                    if (d.positionname && (!$("#position-txt").val() || $("#position-txt").val() === '-')) $("#position-txt").val(d.positionname);
+                    if (d.acc && !$("#shift-txt").val()) {
+                        var shiftVal = d.acc.toString();
+                        if(shiftVal === '1') $("#shift-txt").val('A');
+                        else if(shiftVal === '2') $("#shift-txt").val('B');
+                        else if(shiftVal === '3') $("#shift-txt").val('C');
+                        else $("#shift-txt").val(shiftVal);
+                    }
+                    if (d.groupid && !$("#group-txt").val()) $("#group-txt").val(d.groupid);
+                }
+            });
+    }
+
+    var empFinish = $('#empid2-txt').val();
+    if(empFinish && empFinish !== '') {
+        $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empFinish })
+            .done(function (d) {
+                if (d.found) {
+                    if (d.name && (!$("#name2-txt").val() || $("#name2-txt").val() === '-')) $("#name2-txt").val(d.name);
+                    if (d.positionname && (!$("#position2-txt").val() || $("#position2-txt").val() === '-')) $("#position2-txt").val(d.positionname);
+                }
+            });
+    }
+});
+
+// Fungsi autofill yang sinkron dengan input.php untuk Operator Finish
+function empAuto(empIdTag, shiftTag, groupTag, nameTag, positionTag, empIdlTag) {
+    var empid = $.trim($(empIdTag).val());
+    if (!empid) return;
+
+    var warn = $('#' + empIdlTag);
+
+    $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empid })
+        .done(function (d) {
+            if (d.found) {
+                if (d.acc && !$(shiftTag).val()) {
+                    var shiftVal = d.acc.toString();
+                    if(shiftVal === '1') $(shiftTag).val('A');
+                    else if(shiftVal === '2') $(shiftTag).val('B');
+                    else if(shiftVal === '3') $(shiftTag).val('C');
+                    else $(shiftTag).val(shiftVal);
+                }
+                if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
+                if (d.name) $(nameTag).val(d.name);
+                if (d.positionname || d.position) $(positionTag).val(d.positionname || d.position);
+                if (d.acc && d.groupid) warn.removeClass('visible').addClass('invisible');
+                else warn.removeClass('invisible').addClass('visible');
+            } else {
+                warn.removeClass('invisible').addClass('visible');
+            }
+        })
+        .fail(function () {
+            warn.removeClass('invisible').addClass('visible');
+        });
+}
+</script>
 </main>
 <?= $this->endSection(); ?>

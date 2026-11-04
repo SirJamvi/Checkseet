@@ -140,8 +140,8 @@
                                         <td class="text-center">
                                             <?php 
                                             $roleKey = strtolower(trim((string)($user_role ?? '')));
-                                            $canQc = ($roleKey === 'qc' || $roleKey === 'qa' || $roleKey === 'all' || !empty($is_admin));
-                                            $canProd = ($roleKey === 'production' || in_array($roleKey, ['fl', 'sl', 'all']) || !empty($is_admin));
+                                            $canQc = !empty($can_qc) || (!isset($can_qc) && ($roleKey === 'qc' || $roleKey === 'qa' || !empty($is_admin)));
+                                            $canProd = !empty($can_prod) || (!isset($can_prod) && ($roleKey === 'production' || !empty($is_admin)));
                                             $hasAction = false;
                                             $dailyNotComplete = ($row['pending_daily'] > 0);
                                             ?>
@@ -220,8 +220,8 @@
                                         $isApproved = (!empty($prow['status']) && $prow['status'] === 'Approve');
                                         $isRejected = (!empty($prow['status']) && $prow['status'] === 'Reject');
                                         $roleKey = strtolower(trim((string)($user_role ?? '')));
-                                        $canQc = ($roleKey === 'qc' || $roleKey === 'qa' || $roleKey === 'all' || !empty($is_admin));
-                                        $canProd = ($roleKey === 'production' || in_array($roleKey, ['fl', 'sl', 'all']) || !empty($is_admin));
+                                        $canQc = !empty($can_qc) || (!isset($can_qc) && ($roleKey === 'qc' || $roleKey === 'qa' || !empty($is_admin)));
+                                        $canProd = !empty($can_prod) || (!isset($can_prod) && ($roleKey === 'production' || !empty($is_admin)));
                                         $canApproveProd = ($canQc || $canProd);
                                     ?>
                                     <tr>

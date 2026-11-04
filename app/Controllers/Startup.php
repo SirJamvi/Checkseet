@@ -197,6 +197,7 @@ class Startup extends BaseController
                 'lotno'       => $firstRow['lotno'] ?? '',
                 'number'      => $firstRow['number'] ?? $number,
                 'created_at'  => $firstRow['created_at'] ?? '',
+                'shift'       => $firstRow['shift'] ?? '',
                 'status'      => $firstRow['status'] ?? '-',
                 'tableHtml'   => $tableHtml,
                 'machnoHidden'=> $machnoHidden,
@@ -279,6 +280,12 @@ class Startup extends BaseController
             $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
         }
 
+        $inputDate = trim((string)$this->request->getVar('date'));
+        $customCreatedAt = null;
+        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+            $customCreatedAt = $inputDate . ' ' . date('H:i:s');
+        }
+
         $redirectUrl = $isEdit ? base_url('startup') : base_url('input');
 
         $suffixes = ['a', 'b', 'c', 'd', 'e'];
@@ -296,6 +303,7 @@ class Startup extends BaseController
                 'group'   => (string)$this->request->getVar('group-txt'),
                 'shift'   => (string)$this->request->getVar('shift-txt'),
                 'name'    => $operatorName,
+                'created_at' => (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s'),
             ];
 
             for ($p = 1; $p <= 44; $p++) {
@@ -311,6 +319,10 @@ class Startup extends BaseController
                         }
                     }
                     $rowPayload[$key] = $finalVal;
+
+                    if (in_array($key . '_unit', ['par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 'par021_unit']) && $this->request->getVar($key . '_unit') !== null) {
+                        $rowPayload[$key . '_unit'] = trim((string)$this->request->getVar($key . '_unit'));
+                    }
                 } else {
                     $rowPayload[$key] = $valSfx;
                 }

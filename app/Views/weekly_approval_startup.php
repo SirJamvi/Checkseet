@@ -56,8 +56,8 @@
                                 $dailyNotComplete = ($pendingDailyCount > 0);
 
                                 $roleKey = strtolower(trim((string)($user_role ?? '')));
-                                $canQc = ($roleKey === 'qc' || $roleKey === 'qa' || $roleKey === 'all' || !empty($is_admin));
-                                $canProd = ($roleKey === 'production' || in_array($roleKey, ['fl', 'sl', 'all']) || !empty($is_admin));
+                                $canQc = !empty($can_qc) || (!isset($can_qc) && ($roleKey === 'qc' || $roleKey === 'qa' || !empty($is_admin)));
+                                $canProd = !empty($can_prod) || (!isset($can_prod) && ($roleKey === 'production' || !empty($is_admin)));
                                 $hasAction = false;
                                 $isFullApproved = ($row['status_qc'] === 'Approve' && $row['status_production'] === 'Approve');
                             ?>
@@ -226,7 +226,40 @@
                                             </button>
 
                                             <!-- Tombol Granular Reject tetap bisa ditekan oleh QC/Prod untuk meng-unlock hari yang salah lebih awal -->
-                                            <?php if($canQc || $canProd): $hasAction = true; ?>
+                                            <?php if($canQc && $canProd): $hasAction = true; ?>
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger btn-sm flex-fill shadow-sm btn-open-reject-weekly"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalRejectWeekly"
+                                                            data-id="<?= $row['id'] ?>"
+                                                            data-period-start="<?= $row['period_start'] ?>"
+                                                            data-period-end="<?= $row['period_end'] ?>"
+                                                            data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
+                                                            data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
+                                                            data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
+                                                            data-dept="qc"
+                                                            data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
+                                                            title="Reject hari tertentu untuk revisi QC">
+                                                        <i class="fas fa-times-circle me-1"></i>Reject (QC)...
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger btn-sm flex-fill shadow-sm btn-open-reject-weekly"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalRejectWeekly"
+                                                            data-id="<?= $row['id'] ?>"
+                                                            data-period-start="<?= $row['period_start'] ?>"
+                                                            data-period-end="<?= $row['period_end'] ?>"
+                                                            data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
+                                                            data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
+                                                            data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
+                                                            data-dept="production"
+                                                            data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
+                                                            title="Reject hari tertentu untuk revisi Production">
+                                                        <i class="fas fa-times-circle me-1"></i>Reject (Prod)...
+                                                    </button>
+                                                </div>
+                                            <?php elseif($canQc): $hasAction = true; ?>
                                                 <button type="button" 
                                                         class="btn btn-outline-danger btn-sm w-100 mt-1 shadow-sm btn-open-reject-weekly"
                                                         data-bs-toggle="modal" 
@@ -237,10 +270,26 @@
                                                         data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
                                                         data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
                                                         data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
-                                                        data-dept="<?= $canQc ? 'qc' : 'production' ?>"
+                                                        data-dept="qc"
                                                         data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
-                                                        >
-                                                    <i class="fas fa-times-circle me-1"></i>Reject Hari...
+                                                        title="Reject hari tertentu untuk revisi QC">
+                                                    <i class="fas fa-times-circle me-1"></i>Reject Hari (QC)...
+                                                </button>
+                                            <?php elseif($canProd): $hasAction = true; ?>
+                                                <button type="button" 
+                                                        class="btn btn-outline-danger btn-sm w-100 mt-1 shadow-sm btn-open-reject-weekly"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalRejectWeekly"
+                                                        data-id="<?= $row['id'] ?>"
+                                                        data-period-start="<?= $row['period_start'] ?>"
+                                                        data-period-end="<?= $row['period_end'] ?>"
+                                                        data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
+                                                        data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
+                                                        data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
+                                                        data-dept="production"
+                                                        data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
+                                                        title="Reject hari tertentu untuk revisi Production">
+                                                    <i class="fas fa-times-circle me-1"></i>Reject Hari (Prod)...
                                                 </button>
                                             <?php endif; ?>
                                         <?php else: ?>
@@ -271,7 +320,7 @@
                                                 <?php endif; ?>
 
                                                 <!-- Tombol Granular Reject -->
-                                                <?php if($canQc || $canProd): $hasAction = true; ?>
+                                                <?php if($canQc && $canProd): $hasAction = true; ?>
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm shadow-sm btn-open-reject-weekly"
                                                             data-bs-toggle="modal" 
@@ -282,16 +331,67 @@
                                                             data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
                                                             data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
                                                             data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
-                                                            data-dept="<?= $canQc ? 'qc' : 'production' ?>"
+                                                            data-dept="qc"
                                                             data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
-                                                            >
-                                                        <i class="fas fa-times me-1"></i>Reject Hari...
+                                                            title="Reject hari tertentu untuk revisi QC">
+                                                        <i class="fas fa-times me-1"></i>Reject (QC)...
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger btn-sm shadow-sm btn-open-reject-weekly"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalRejectWeekly"
+                                                            data-id="<?= $row['id'] ?>"
+                                                            data-period-start="<?= $row['period_start'] ?>"
+                                                            data-period-end="<?= $row['period_end'] ?>"
+                                                            data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
+                                                            data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
+                                                            data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
+                                                            data-dept="production"
+                                                            data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
+                                                            title="Reject hari tertentu untuk revisi Production">
+                                                        <i class="fas fa-times me-1"></i>Reject (Prod)...
+                                                    </button>
+                                                <?php elseif($canQc): $hasAction = true; ?>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger btn-sm shadow-sm btn-open-reject-weekly"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalRejectWeekly"
+                                                            data-id="<?= $row['id'] ?>"
+                                                            data-period-start="<?= $row['period_start'] ?>"
+                                                            data-period-end="<?= $row['period_end'] ?>"
+                                                            data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
+                                                            data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
+                                                            data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
+                                                            data-dept="qc"
+                                                            data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
+                                                            title="Reject hari tertentu untuk revisi QC">
+                                                        <i class="fas fa-times me-1"></i>Reject Hari (QC)...
+                                                    </button>
+                                                <?php elseif($canProd): $hasAction = true; ?>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger btn-sm shadow-sm btn-open-reject-weekly"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalRejectWeekly"
+                                                            data-id="<?= $row['id'] ?>"
+                                                            data-period-start="<?= $row['period_start'] ?>"
+                                                            data-period-end="<?= $row['period_end'] ?>"
+                                                            data-device="<?= !empty($row['device']) ? esc($row['device']) : (!empty($row['device_names']) ? esc(strip_tags($row['device_names'])) : 'Multi-Device') ?>"
+                                                            data-process="<?= !empty($row['process']) ? esc($row['process']) : 'Multi-Proses' ?>"
+                                                            data-machno="<?= !empty($row['machno']) ? esc($row['machno']) : '-' ?>"
+                                                            data-dept="production"
+                                                            data-active-dates='<?= json_encode($row['active_dates'] ?? []) ?>'
+                                                            title="Reject hari tertentu untuk revisi Production">
+                                                        <i class="fas fa-times me-1"></i>Reject Hari (Prod)...
                                                     </button>
                                                 <?php endif; ?>
                                             </div>
 
                                             <?php if(!$hasAction): ?>
-                                                <span class="text-muted small"><i>Selesai / No Action</i></span>
+                                                <?php if(!$canQc && !$canProd): ?>
+                                                    <span class="badge bg-secondary py-1 px-2" title="Hanya Leader/Foreman/Supervisor QC atau Production yang dapat approve/reject"><i class="fas fa-lock me-1"></i>Hanya QC &amp; Production</span>
+                                                <?php else: ?>
+                                                    <span class="text-muted small"><i>Selesai / No Action</i></span>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     </div>

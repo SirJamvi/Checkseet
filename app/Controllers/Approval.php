@@ -140,6 +140,58 @@ class Approval extends BaseController
         return view('approval_hub', $data);
     }
 
+    /**
+     * Dapatkan otoritas approval pengguna secara ketat:
+     * - Admin (isadmin / username admin): Super Admin bypass, dapat approve & reject kedua departemen (QC & Production).
+     * - QC / QA: Hanya untuk Leader/Foreman/Supervisor/Manager (Level 1-7) dari departemen QC/QA.
+     * - Production: Hanya untuk Leader/Foreman/Supervisor/Manager (Level 1-7) dari departemen Production (FL, SL, Opto, Compound, dll).
+     * - Departemen lain / Operator biasa (Level 0): Ditolak (tidak memiliki otoritas approve/reject mingguan).
+     */
+    private function getUserApprovalAuthority(): array
+    {
+        $isAdmin = !empty($this->session->get('isadmin')) || ($this->session->get('empid') === 'admin');
+        $level = (int) ($this->session->get('level') ?? 0);
+        $deptCategory = strtoupper((string)($this->session->get('department') ?? ''));
+        $deptid = (string)($this->session->get('deptid') ?? '');
+
+        // Fallback untuk sesi aktif yang belum memiliki data department di session
+        if (empty($deptCategory) && !$isAdmin) {
+            $empid = (string) $this->session->get('empid');
+            if (!empty($empid)) {
+                $empModel = new \App\Models\EmpModel();
+                $empData = $empModel->getDataEmp($empid);
+                if ($empData) {
+                    $deptid = (string)$empData->deptid;
+                    $deptCategory = \App\Models\EmpModel::determineDepartmentCategory($deptid);
+                    $this->session->set('deptid', $deptid);
+                    $this->session->set('department', $deptCategory);
+
+                    if ($level === 0 && !empty($empData->positionid)) {
+                        $level_string = preg_split('/,/', $empData->positionid, -1, PREG_SPLIT_NO_EMPTY)[0];
+                        $level = (int) $level_string;
+                        $this->session->set('level', $level);
+                    }
+                }
+            }
+        }
+
+        // Leader ke atas (Level 1 s/d 7: Leader, Foreman, Supervisor, Manager)
+        $isEligibleLevel = ($level >= 1 && $level <= 7);
+
+        $canQc = $isAdmin || ($isEligibleLevel && $deptCategory === 'QC');
+        $canProd = $isAdmin || ($isEligibleLevel && $deptCategory === 'PRODUCTION');
+
+        return [
+            'is_admin'       => $isAdmin,
+            'level'          => $level,
+            'deptid'         => $deptid,
+            'department'     => $deptCategory,
+            'can_qc'         => $canQc,
+            'can_production' => $canProd,
+            'is_eligible'    => ($isAdmin || ($isEligibleLevel && ($deptCategory === 'QC' || $deptCategory === 'PRODUCTION')))
+        ];
+    }
+
     public function weeklyStartup()
     {
         if(!$this->session->has('name')){
@@ -150,11 +202,10 @@ class Approval extends BaseController
         $this->syncOngoingWeeklyStartup();
 
         $weeklyModel = new WeeklyApprovalModel();
-        $role = strtolower(trim((string)$this->session->get('role')));
-        $isAdmin = !empty($this->session->get('isadmin'));
-
-        $is_qc = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
-        $is_prod = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+        $auth = $this->getUserApprovalAuthority();
+        $isAdmin = $auth['is_admin'];
+        $canQc   = $auth['can_qc'];
+        $canProd = $auth['can_production'];
 
         $weeklyList = $weeklyModel->getWeeklyList();
 
@@ -195,9 +246,12 @@ class Approval extends BaseController
             'title'       => 'Weekly Approval Data - Startup Checksheet',
             'weekly_data' => $weeklyList,
             'user_role'   => $this->session->get('role'),
+            'user_dept'   => $auth['department'],
             'is_admin'    => $isAdmin,
-            'is_qc'       => $is_qc,
-            'is_prod'     => $is_prod
+            'can_qc'      => $canQc,
+            'can_prod'    => $canProd,
+            'is_qc'       => $canQc,
+            'is_prod'     => $canProd
         ];
 
         return view('weekly_approval_startup', $data);
@@ -299,24 +353,26 @@ class Approval extends BaseController
             $sort = 'desc';
         }
 
-        $role = strtolower(trim((string)$this->session->get('role')));
-        $isAdmin = !empty($this->session->get('isadmin'));
-
-        $is_qc = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
-        $is_prod = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+        $auth    = $this->getUserApprovalAuthority();
+        $isAdmin = $auth['is_admin'];
+        $canQc   = $auth['can_qc'];
+        $canProd = $auth['can_production'];
 
         // Ambil data batch lembar production yang sudah diurutkan
         $productionData = $weeklyModel->getProductionBatchList($sort);
 
         $data = [
-            'title'           => 'Page Approval Data â€“ Production Checksheet (Per 20 Data)',
+            'title'           => 'Page Approval Data – Production Checksheet (Per 20 Data)',
             'production_data' => $productionData,
             'sort_dir'        => $sort,
             'next_sort'       => ($sort === 'desc' ? 'asc' : 'desc'),
             'user_role'       => $this->session->get('role'),
+            'user_dept'       => $auth['department'],
             'is_admin'        => $isAdmin,
-            'is_qc'           => $is_qc,
-            'is_prod'         => $is_prod
+            'can_qc'          => $canQc,
+            'can_prod'        => $canProd,
+            'is_qc'           => $canQc,
+            'is_prod'         => $canProd
         ];
 
         return view('weekly_approval_production', $data);
@@ -367,10 +423,10 @@ class Approval extends BaseController
         $action     = $this->request->getPost('action'); // 'Approve' atau 'Reject'
         $departemen = strtolower(trim((string)$this->request->getPost('departemen'))); // 'qc' atau 'production'
 
-        $role    = strtolower(trim((string)$this->session->get('role')));
-        $isAdmin = !empty($this->session->get('isadmin'));
-        $canQc   = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
-        $canProd = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+        $auth    = $this->getUserApprovalAuthority();
+        $isAdmin = $auth['is_admin'];
+        $canQc   = $auth['can_qc'];
+        $canProd = $auth['can_production'];
 
         $batch = $weeklyModel->find($weekly_id);
         if (!$batch) {
@@ -428,16 +484,16 @@ class Approval extends BaseController
         }
 
         // =========================================================================
-        // 2. LOGIKA APPROVAL STARTUP MINGGUAN (Existing - 100% Tetap Dipertahankan)
+        // 2. LOGIKA APPROVAL STARTUP MINGGUAN (Validasi Peran Departemen Ketat)
         // =========================================================================
         // Validasi Otoritas Akses Departemen
         if ($departemen === 'qc' && !$canQc) {
-            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC.');
-        return redirect()->to(base_url().'approval/weekly?type=startup');
+            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC/QA. Hanya Leader/Foreman/Supervisor QC/QA yang diizinkan menyetujui bagian QC.');
+            return redirect()->to(base_url().'approval/weekly?type=startup');
         }
         if ($departemen === 'production' && !$canProd) {
-            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan Production.');
-        return redirect()->to(base_url().'approval/weekly?type=startup');
+            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan Production. Hanya Leader/Foreman/Supervisor Production yang diizinkan menyetujui bagian Production.');
+            return redirect()->to(base_url().'approval/weekly?type=startup');
         }
 
         // Syarat Wajib Lengkap Startup: Daily approval harus sudah selesai
@@ -613,17 +669,17 @@ class Approval extends BaseController
             return redirect()->to($backUrl);
         }
 
-        $role = strtolower(trim((string)$this->session->get('role')));
-        $isAdmin = !empty($this->session->get('isadmin'));
-        $canQc = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
-        $canProd = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+        $auth    = $this->getUserApprovalAuthority();
+        $isAdmin = $auth['is_admin'];
+        $canQc   = $auth['can_qc'];
+        $canProd = $auth['can_production'];
 
         if ($departemen === 'qc' && !$canQc) {
-            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC.');
+            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas penolakan (reject) QC/QA. Hanya Leader/Foreman/Supervisor QC/QA yang diizinkan melakukan reject QC.');
             return redirect()->to($backUrl);
         }
         if ($departemen === 'production' && !$canProd) {
-            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan Production.');
+            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas penolakan (reject) Production. Hanya Leader/Foreman/Supervisor Production yang diizinkan melakukan reject Production.');
             return redirect()->to($backUrl);
         }
 
@@ -928,10 +984,10 @@ class Approval extends BaseController
             return strcmp((string)$a['machno'], (string)$b['machno']);
         });
 
-        $role = strtolower(trim((string)$this->session->get('role')));
-        $isAdmin = !empty($this->session->get('isadmin'));
-        $canQc = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
-        $canProd = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+        $auth    = $this->getUserApprovalAuthority();
+        $isAdmin = $auth['is_admin'];
+        $canQc   = $auth['can_qc'];
+        $canProd = $auth['can_production'];
 
         $data = [
             'title'          => 'Detail Dokumen Mingguan | Startup Management',
@@ -943,9 +999,12 @@ class Approval extends BaseController
             'grouped_data'   => array_values($groupedData),
             'alldata'        => $rawDocs,
             'user_role'      => $this->session->get('role'),
+            'user_dept'      => $auth['department'],
             'is_admin'       => $isAdmin,
             'canQc'          => $canQc,
             'canProd'        => $canProd,
+            'can_qc'         => $canQc,
+            'can_prod'       => $canProd,
             'is_qc'          => $canQc,
             'is_prod'        => $canProd
         ];
