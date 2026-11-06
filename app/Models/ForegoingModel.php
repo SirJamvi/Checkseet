@@ -16,7 +16,8 @@ class ForegoingModel extends Model
         'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035', 'par036', 'par037', 'par038',
         'par039', 'par040', 'par041', 'par042', 'docno', 'revisi',
         'status', 'role', 'foreman', 'leader', 'supervisor', 'edit_status', 'unlocked_by',
-        'reject_reason', 'reject_by', 'reject_date'
+        'reject_reason', 'reject_by', 'reject_date',
+        'created_at'
     ];
 
     public function __construct()
@@ -215,6 +216,7 @@ class ForegoingModel extends Model
                 $data['reject_date'] = null;
             }
             $data['edit_status'] = 0;
+            unset($data['created_at']);
             $this->update($result->id, $data);
             return "Update foregoing";
         }

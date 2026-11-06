@@ -36,7 +36,7 @@
               <label for="date" class="col-sm-2 col-form-label">Date</label>
               <div class="col-sm-6">
                 <!-- Lock data tanpa css custom agar natural seperti view input -->
-                <input type="text" class="form-control" id="date" name="date" value="<?php echo date('Y-m-d');?>" readonly>
+                <input type="text" class="form-control" id="date" name="date" value="<?= !empty($alldata[0]['created_at']) ? date('Y-m-d', strtotime($alldata[0]['created_at'])) : date('Y-m-d'); ?>" readonly>
               </div>
             </div>
 

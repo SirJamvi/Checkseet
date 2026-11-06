@@ -138,6 +138,8 @@ $routes->get('/history/exportExcel', 'History::exportExcel');
 $routes->get('/history/exportPDF', 'History::exportPDF');
 $routes->get('/cleansing', 'Cleansing::index');
 $routes->post('/cleansing/execute', 'Cleansing::execute');
+$routes->get('/cleansing/shiftc', 'Cleansing::shiftc');
+$routes->match(['GET', 'POST'], '/cleansing/shiftc/execute', 'Cleansing::executeShiftc');
 
 // ==========================================================
 // 11. TESTING & UTILITIES

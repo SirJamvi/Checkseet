@@ -35,7 +35,8 @@ class ProductionModel extends Model
         'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028',
         'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035',
         'par036', 'par037', 'par038', 'par039', 'par040', 'par041', 'par042',
-        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor', 'docno', 'revisi', 'weekly_id'
+        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor', 'docno', 'revisi', 'weekly_id',
+        'created_at'
     ];
 
     public function getCsheet($slug = false)
@@ -206,6 +207,7 @@ class ProductionModel extends Model
         }
 
         if ($result->par045 == 'Process Complete') {
+            unset($data['created_at']);
             $this->update($result->id, $data);
             return 'Update Production';
         }
@@ -216,6 +218,7 @@ class ProductionModel extends Model
         $data['name']   = $result->name;
         $data['par008'] = $result->par008;
         $data['par045'] = 'Process Complete';
+        unset($data['created_at']);
         $this->update($result->id, $data);
         return 'Add Production (Process Complete)';
     }

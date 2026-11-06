@@ -73,25 +73,29 @@ class Startup extends BaseController
             'validation' => \Config\Services::validation()
         ];
         
-        if(empty($_GET['device']) || empty($_GET['process'])){
+        $device  = $this->request->getGet('device') ?? ($_GET['device'] ?? '');
+        $process = $this->request->getGet('process') ?? ($_GET['process'] ?? '');
+
+        if(empty($device) || empty($process)){
             return "";
         }
 
-        $folder = $this->getFolderType($_GET['process']);
+        $folder = $this->getFolderType($process);
         
         try {
-            return view('/layout/'.$_GET['device']."/input/".$folder."/".$_GET['process'],$data);
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return view('/layout/'.$device."/input/".$folder."/".$process,$data);
+        } catch (\Throwable $e) {
             return "<div class='alert alert-danger'>Maaf, form input belum tersedia.</div>";
         }
     }
 
     public function formEdit()
     {
+        $number = $this->request->getGet('number') ?? ($_GET['number'] ?? '');
         $data = [
             'title' => 'History | Startup Management',
-            'alldata' => $this->StartupModel->getByNumber($_GET['number']),
-            'number' => $_GET['number']
+            'alldata' => $this->StartupModel->getByNumber($number),
+            'number' => $number
         ];
         
         if(empty($data['alldata'])) return "Data tidak ditemukan.";
@@ -99,7 +103,7 @@ class Startup extends BaseController
         $folder = $this->getFolderType($data['alldata'][0]['process']);
         try {
             return view("/layout/".$data['alldata'][0]['device']."/input/".$folder."/".$data['alldata'][0]['process'],$data);
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+        } catch (\Throwable $e) {
             return "<div class='alert alert-danger'>Maaf, form edit belum tersedia.</div>";
         }
     }
@@ -280,9 +284,29 @@ class Startup extends BaseController
             $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
         }
 
+        $nowHour = (int)date('H');
+        $shiftVal = strtoupper(trim((string)$this->request->getVar('shift-txt')));
+        if ($shiftVal === '3') $shiftVal = 'C';
         $inputDate = trim((string)$this->request->getVar('date'));
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+        if (!$isEdit && $nowHour >= 0 && $nowHour < 7) {
+            if ($shiftVal !== 'C') {
+                session()->setFlashdata('message', 'GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!');
+                return redirect()->to(base_url('input'));
+            }
+            if ($inputDate !== $yesterday) {
+                $inputDate = $yesterday;
+            }
+        }
+
         $customCreatedAt = null;
-        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+        // Jika Shift C, paksa tanggal menjadi H-1 dan waktu menjadi 23:20:00
+        if ($shiftVal === 'C') {
+            $customCreatedAt = $yesterday . ' 23:20:00';
+        } 
+        // Selain Shift C, gunakan tanggal input dengan waktu aktual
+        elseif (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
             $customCreatedAt = $inputDate . ' ' . date('H:i:s');
         }
 
@@ -301,7 +325,7 @@ class Startup extends BaseController
                 'machno'  => (string)$this->request->getVar('machno-txt'),
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
-                'shift'   => (string)$this->request->getVar('shift-txt'),
+                'shift'   => $shiftVal,
                 'name'    => $operatorName,
                 'created_at' => (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s'),
             ];

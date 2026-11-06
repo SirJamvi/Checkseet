@@ -390,7 +390,28 @@ class Production extends BaseController
             $existingMap[$bNo] = $erow;
         }
 
-        $nowDateTime = date('Y-m-d H:i:s');
+        $nowHour = (int)date('H');
+        $shiftVal = strtoupper(trim((string)($req->getVar('shift-txt') ?: '')));
+        if ($shiftVal === '3') $shiftVal = 'C';
+        $inputDate = trim((string)$req->getVar('date'));
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+        if (empty($editNumber) && $nowHour >= 0 && $nowHour < 7) {
+            if ($shiftVal !== 'C') {
+                session()->setFlashdata('message', 'GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!');
+                return redirect()->to(base_url('input'));
+            }
+            if ($inputDate !== $yesterday) {
+                $inputDate = $yesterday;
+            }
+        }
+
+        $customCreatedAt = null;
+        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+            $customCreatedAt = $inputDate . ' ' . date('H:i:s');
+        }
+
+        $nowDateTime = ($customCreatedAt !== null && empty($editNumber)) ? $customCreatedAt : date('Y-m-d H:i:s');
         $nowTimeOnly = date('H:i:s');
 
         $hasEmp2Input = ($req->getPost('empid2-txt') !== null);
@@ -398,11 +419,12 @@ class Production extends BaseController
             $empid2Val = trim((string) $req->getVar('empid2-txt'));
             $group2Val = trim((string) $req->getVar('group2-txt'));
             $shift2Val = trim((string) $req->getVar('shift2-txt'));
+            if ($shift2Val === '3') $shift2Val = 'C';
             $name2Val  = trim((string) $req->getVar('name2-txt'));
         } else {
             $empid2Val = trim((string) ($req->getVar('empid-txt') ?: ''));
             $group2Val = trim((string) ($req->getVar('group-txt') ?: ''));
-            $shift2Val = trim((string) ($req->getVar('shift-txt') ?: ''));
+            $shift2Val = $shiftVal;
             $name2Val  = trim((string) ($req->getVar('name-txt') ?: ''));
         }
 
@@ -415,12 +437,17 @@ class Production extends BaseController
         $startGroup = (!$hasEmp2Input && !empty($origRow1['group']))
             ? $origRow1['group']
             : $req->getVar('group-txt');
-        $startShift = (!$hasEmp2Input && !empty($origRow1['shift']))
+            $startShift = (!$hasEmp2Input && !empty($origRow1['shift']))
             ? $origRow1['shift']
-            : $req->getVar('shift-txt');
+            : $shiftVal;
         $startName  = (!$hasEmp2Input && !empty($origRow1['name']))
             ? $origRow1['name']
             : ($req->getVar('name-txt') ?: '');
+
+        // === TAMBAHKAN LOGIKA TIME IN STATIS SHIFT C DI SINI ===
+        // Jika Shift C, time in dipaksa H-1 jam 23:20. Selain itu, gunakan waktu aktual.
+        $timeInDateTime = ($startShift === 'C') ? $yesterday . ' 23:20:00' : $nowDateTime;
+        // =======================================================
 
         $common = [
             'number'       => $number,
@@ -438,6 +465,8 @@ class Production extends BaseController
             'shift2'       => $hasOperatorFinish ? $shift2Val : null,
             'name2'        => $hasOperatorFinish ? $name2Val : null,
             'std_die_bond' => $req->getVar('std_die_bond') ?: null,
+            // Modifikasi 'created_at' agar history grid ikut sinkron dengan waktu statis jika baru dibuat
+            'created_at'   => empty($editNumber) ? $timeInDateTime : date('Y-m-d H:i:s'),
         ];
 
         $suffixes  = ['a', 'b', 'c', 'd', 'e'];
@@ -457,14 +486,17 @@ class Production extends BaseController
                 if ($n === 8) {
                     $oldIn = $existingMap[$blockNo]['par008'] ?? null;
                     $isOldValid = (!empty($oldIn) && strpos((string) $oldIn, '07:00') === false && $oldIn !== '-');
-                    $data[$key] = $isOldValid ? $oldIn : $nowDateTime;
+                    // UBAH: Gunakan $timeInDateTime khusus untuk par008
+                    $data[$key] = $isOldValid ? $oldIn : $timeInDateTime; 
                 } elseif ($n === 9) {
+                    // TETAP: Time out (par009) biarkan menggunakan waktu aktual ($nowDateTime)
                     $data[$key] = $hasOperatorFinish ? $nowDateTime : null;
                 } elseif ($n === 10) {
                     $val10 = $this->pick($key, $suffix);
                     $str10 = trim((string) $val10);
                     $isTimeStr = preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $str10);
                     if ($str10 === '07:00:00' || $str10 === '07:00' || $isTimeStr) {
+                        // TETAP: Time out (par010) biarkan menggunakan waktu aktual ($nowTimeOnly)
                         $data[$key] = $hasOperatorFinish ? $nowTimeOnly : null;
                     } else {
                         $data[$key] = $val10;

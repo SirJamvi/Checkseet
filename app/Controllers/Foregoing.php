@@ -337,6 +337,32 @@ class Foregoing extends BaseController
             $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
         }
 
+        $nowHour = (int)date('H');
+        $shiftVal = strtoupper(trim((string)$this->request->getVar('shift-txt')));
+        if ($shiftVal === '3') $shiftVal = 'C';
+        $inputDate = trim((string)$this->request->getVar('date'));
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+        if (!$isEdit && $nowHour >= 0 && $nowHour < 7) {
+            if ($shiftVal !== 'C') {
+                session()->setFlashdata('message', 'GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!');
+                return redirect()->to(base_url('input'));
+            }
+            if ($inputDate !== $yesterday) {
+                $inputDate = $yesterday;
+            }
+        }
+
+        $customCreatedAt = null;
+        // Jika Shift C, paksa tanggal menjadi H-1 dan waktu menjadi 23:20:00
+        if ($shiftVal === 'C') {
+            $customCreatedAt = $yesterday . ' 23:20:00';
+        } 
+        // Selain Shift C, gunakan tanggal input dengan waktu aktual
+        elseif (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+            $customCreatedAt = $inputDate . ' ' . date('H:i:s');
+        }
+
         $redirectUrl = $isEdit ? base_url('foregoing') : base_url('input');
 
         $suffixes = ['a', 'b', 'c', 'd', 'e'];
@@ -352,8 +378,9 @@ class Foregoing extends BaseController
                 'machno'  => (string)$this->request->getVar('machno-txt'),
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
-                'shift'   => (string)$this->request->getVar('shift-txt'),
+                'shift'   => $shiftVal,
                 'name'    => $operatorName,
+                'created_at' => (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s'),
             ];
 
             for ($p = 1; $p <= 44; $p++) {
