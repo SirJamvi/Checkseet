@@ -134,6 +134,11 @@
                                 </td>
                                 <td><?= !empty($row['lots']) ? esc(implode(', ', $row['lots'])) : '-' ?></td>
                                 <td class="text-center">
+                                    <?php 
+                                        $docApp = $row['doc_approval'] ?? null;
+                                        $isDocApprovedQc   = (!empty($docApp['status_qc']) && $docApp['status_qc'] === 'Approve');
+                                        $isDocApprovedProd = (!empty($docApp['status_production']) && $docApp['status_production'] === 'Approve');
+                                    ?>
                                     <?php if(!empty($row['rejected_count']) && $row['rejected_count'] > 0): ?>
                                         <span class="badge bg-danger shadow-sm">
                                             <i class="fas fa-times-circle me-1"></i><?= $row['rejected_count'] ?> Hari Di-reject
@@ -152,6 +157,22 @@
                                             <i class="fas fa-check-circle me-1"></i>Lengkap (<?= $row['approved_count'] ?> Hari)
                                         </span>
                                     <?php endif; ?>
+
+                                    <!-- Status Approval Mingguan Khusus Dokumen Ini -->
+                                    <?php if($isDocApprovedQc): ?>
+                                        <div class="mt-1">
+                                            <span class="badge bg-success shadow-sm" style="font-size: 0.72rem;" title="Disetujui QC: <?= esc($docApp['approver_qc']) ?> (<?= !empty($docApp['date_qc']) ? date('d/m/Y H:i', strtotime($docApp['date_qc'])) : '' ?>)">
+                                                <i class="fas fa-check-double me-1"></i>QC Approved
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if($isDocApprovedProd): ?>
+                                        <div class="mt-1">
+                                            <span class="badge bg-primary shadow-sm" style="font-size: 0.72rem;" title="Disetujui Production: <?= esc($docApp['approver_production']) ?> (<?= !empty($docApp['date_production']) ? date('d/m/Y H:i', strtotime($docApp['date_production'])) : '' ?>)">
+                                                <i class="fas fa-check-double me-1"></i>Prod Approved
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-1 flex-wrap">
@@ -169,76 +190,103 @@
                                         </a>
 
                                         <?php if(!empty($canQc) && !empty($canProd)): ?>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalRejectMachine"
-                                                    data-weekly-id="<?= $mingguan['id'] ?>"
-                                                    data-period-start="<?= $mingguan['period_start'] ?>"
-                                                    data-period-end="<?= $mingguan['period_end'] ?>"
-                                                    data-device="<?= esc($row['device']) ?>"
-                                                    data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
-                                                    data-process="<?= esc($row['process']) ?>"
-                                                    data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
-                                                    data-machno="<?= esc($row['machno'] ?: '-') ?>"
-                                                    data-dept="qc"
-                                                    data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
-                                                    title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?> (QC)">
-                                                <i class="fas fa-times-circle me-1"></i>Reject (QC)...
-                                            </button>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalRejectMachine"
-                                                    data-weekly-id="<?= $mingguan['id'] ?>"
-                                                    data-period-start="<?= $mingguan['period_start'] ?>"
-                                                    data-period-end="<?= $mingguan['period_end'] ?>"
-                                                    data-device="<?= esc($row['device']) ?>"
-                                                    data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
-                                                    data-process="<?= esc($row['process']) ?>"
-                                                    data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
-                                                    data-machno="<?= esc($row['machno'] ?: '-') ?>"
-                                                    data-dept="production"
-                                                    data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
-                                                    title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?> (Production)">
-                                                <i class="fas fa-times-circle me-1"></i>Reject (Prod)...
-                                            </button>
+                                            <?php if($isDocApprovedQc): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" disabled title="Dokumen mesin ini sudah disetujui (Approved) oleh QC: <?= esc($docApp['approver_qc']) ?>, sehingga tidak dapat di-reject.">
+                                                    <i class="fas fa-check me-1"></i>Approved (QC)
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalRejectMachine"
+                                                        data-weekly-id="<?= $mingguan['id'] ?>"
+                                                        data-period-start="<?= $mingguan['period_start'] ?>"
+                                                        data-period-end="<?= $mingguan['period_end'] ?>"
+                                                        data-device="<?= esc($row['device']) ?>"
+                                                        data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
+                                                        data-process="<?= esc($row['process']) ?>"
+                                                        data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
+                                                        data-machno="<?= esc($row['machno'] ?: '-') ?>"
+                                                        data-dept="qc"
+                                                        data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
+                                                        title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?> (QC)">
+                                                    <i class="fas fa-times-circle me-1"></i>Reject (QC)...
+                                                </button>
+                                            <?php endif; ?>
+
+                                            <?php if($isDocApprovedProd): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" disabled title="Dokumen mesin ini sudah disetujui (Approved) oleh Production: <?= esc($docApp['approver_production']) ?>, sehingga tidak dapat di-reject.">
+                                                    <i class="fas fa-check me-1"></i>Approved (Prod)
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalRejectMachine"
+                                                        data-weekly-id="<?= $mingguan['id'] ?>"
+                                                        data-period-start="<?= $mingguan['period_start'] ?>"
+                                                        data-period-end="<?= $mingguan['period_end'] ?>"
+                                                        data-device="<?= esc($row['device']) ?>"
+                                                        data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
+                                                        data-process="<?= esc($row['process']) ?>"
+                                                        data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
+                                                        data-machno="<?= esc($row['machno'] ?: '-') ?>"
+                                                        data-dept="production"
+                                                        data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
+                                                        title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?> (Production)">
+                                                    <i class="fas fa-times-circle me-1"></i>Reject (Prod)...
+                                                </button>
+                                            <?php endif; ?>
+
                                         <?php elseif(!empty($canQc)): ?>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalRejectMachine"
-                                                    data-weekly-id="<?= $mingguan['id'] ?>"
-                                                    data-period-start="<?= $mingguan['period_start'] ?>"
-                                                    data-period-end="<?= $mingguan['period_end'] ?>"
-                                                    data-device="<?= esc($row['device']) ?>"
-                                                    data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
-                                                    data-process="<?= esc($row['process']) ?>"
-                                                    data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
-                                                    data-machno="<?= esc($row['machno'] ?: '-') ?>"
-                                                    data-dept="qc"
-                                                    data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
-                                                    title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?>">
-                                                <i class="fas fa-times-circle me-1"></i>Reject Hari (QC)...
-                                            </button>
+                                            <?php if($isDocApprovedQc): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" disabled title="Dokumen mesin ini sudah disetujui (Approved) oleh QC: <?= esc($docApp['approver_qc']) ?>, sehingga tidak dapat di-reject.">
+                                                    <i class="fas fa-check me-1"></i>Approved (QC)
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalRejectMachine"
+                                                        data-weekly-id="<?= $mingguan['id'] ?>"
+                                                        data-period-start="<?= $mingguan['period_start'] ?>"
+                                                        data-period-end="<?= $mingguan['period_end'] ?>"
+                                                        data-device="<?= esc($row['device']) ?>"
+                                                        data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
+                                                        data-process="<?= esc($row['process']) ?>"
+                                                        data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
+                                                        data-machno="<?= esc($row['machno'] ?: '-') ?>"
+                                                        data-dept="qc"
+                                                        data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
+                                                        title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?>">
+                                                    <i class="fas fa-times-circle me-1"></i>Reject Hari (QC)...
+                                                </button>
+                                            <?php endif; ?>
+
                                         <?php elseif(!empty($canProd)): ?>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalRejectMachine"
-                                                    data-weekly-id="<?= $mingguan['id'] ?>"
-                                                    data-period-start="<?= $mingguan['period_start'] ?>"
-                                                    data-period-end="<?= $mingguan['period_end'] ?>"
-                                                    data-device="<?= esc($row['device']) ?>"
-                                                    data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
-                                                    data-process="<?= esc($row['process']) ?>"
-                                                    data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
-                                                    data-machno="<?= esc($row['machno'] ?: '-') ?>"
-                                                    data-dept="production"
-                                                    data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
-                                                    title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?>">
-                                                <i class="fas fa-times-circle me-1"></i>Reject Hari (Prod)...
-                                            </button>
+                                            <?php if($isDocApprovedProd): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" disabled title="Dokumen mesin ini sudah disetujui (Approved) oleh Production: <?= esc($docApp['approver_production']) ?>, sehingga tidak dapat di-reject.">
+                                                    <i class="fas fa-check me-1"></i>Approved (Prod)
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger btn-open-reject-machine shadow-sm"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalRejectMachine"
+                                                        data-weekly-id="<?= $mingguan['id'] ?>"
+                                                        data-period-start="<?= $mingguan['period_start'] ?>"
+                                                        data-period-end="<?= $mingguan['period_end'] ?>"
+                                                        data-device="<?= esc($row['device']) ?>"
+                                                        data-device-name="<?= esc($row['device_name'] ?: $row['device']) ?>"
+                                                        data-process="<?= esc($row['process']) ?>"
+                                                        data-process-name="<?= esc($row['process_name'] ?: $row['process']) ?>"
+                                                        data-machno="<?= esc($row['machno'] ?: '-') ?>"
+                                                        data-dept="production"
+                                                        data-dates='<?= htmlspecialchars(json_encode(array_values($row['dates_detail'] ?? [])), ENT_QUOTES, 'UTF-8') ?>'
+                                                        title="Reject hari tertentu khusus untuk mesin <?= esc($row['machno'] ?: '-') ?>">
+                                                    <i class="fas fa-times-circle me-1"></i>Reject Hari (Prod)...
+                                                </button>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -554,5 +602,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+<?= $this->include('layout/modal_confirm_weekly_approve'); ?>
 </main>
 <?= $this->endSection(); ?>

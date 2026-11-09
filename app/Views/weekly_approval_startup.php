@@ -301,7 +301,13 @@
                                                         <input type="hidden" name="weekly_id" value="<?= $row['id'] ?>">
                                                         <input type="hidden" name="departemen" value="qc">
                                                         <input type="hidden" name="action" value="Approve">
-                                                        <button type="submit" class="btn btn-success btn-sm shadow-sm" onclick="return confirm('Apakah Anda yakin menyetujui periode mingguan ini untuk QC?');">
+                                                        <button type="button" 
+                                                                class="btn btn-success btn-sm shadow-sm btn-open-approve-weekly"
+                                                                data-weekly-id="<?= $row['id'] ?>"
+                                                                data-departemen="qc"
+                                                                data-doc-type="startup"
+                                                                data-period="<?= date('d/m/Y', strtotime($row['period_start'])) ?> - <?= date('d/m/Y', strtotime($row['period_end'])) ?>"
+                                                                title="Validasi & Approve Periode untuk QC">
                                                             <i class="fas fa-check me-1"></i><?= ($row['status_qc'] === 'Rejected (Revisi)') ? 'Re-Approve (QC)' : 'Approve (QC)' ?>
                                                         </button>
                                                     </form>
@@ -313,7 +319,13 @@
                                                         <input type="hidden" name="weekly_id" value="<?= $row['id'] ?>">
                                                         <input type="hidden" name="departemen" value="production">
                                                         <input type="hidden" name="action" value="Approve">
-                                                        <button type="submit" class="btn btn-primary btn-sm shadow-sm" onclick="return confirm('Apakah Anda yakin menyetujui periode mingguan ini untuk Production?');">
+                                                        <button type="button" 
+                                                                class="btn btn-primary btn-sm shadow-sm btn-open-approve-weekly"
+                                                                data-weekly-id="<?= $row['id'] ?>"
+                                                                data-departemen="production"
+                                                                data-doc-type="startup"
+                                                                data-period="<?= date('d/m/Y', strtotime($row['period_start'])) ?> - <?= date('d/m/Y', strtotime($row['period_end'])) ?>"
+                                                                title="Validasi & Approve Periode untuk Production">
                                                             <i class="fas fa-check me-1"></i><?= ($row['status_production'] === 'Rejected (Revisi)') ? 'Re-Approve (Prod)' : 'Approve (Prod)' ?>
                                                         </button>
                                                     </form>
@@ -554,13 +566,25 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentDevice = '';
     let currentProcess = '';
     let currentMachno = '-';
+    let currentDept = 'qc';
 
     function populateMachineSelect() {
         selectMachine.innerHTML = '';
         if (currentMachines.length > 0) {
+            const unapprovedCount = currentMachines.filter(function (m) {
+                return !((currentDept === 'qc') ? m.is_approved_qc : m.is_approved_production);
+            }).length;
+
             const optAll = document.createElement('option');
             optAll.value = 'ALL';
-            optAll.textContent = '[Semua Mesin] - Reject hari terpilih untuk seluruh mesin (' + currentMachines.length + ' Mesin)';
+            if (unapprovedCount === 0) {
+                optAll.disabled = true;
+                optAll.textContent = '[Semua Mesin] - Seluruh mesin sudah Approved (Tidak dapat di-reject)';
+            } else if (unapprovedCount < currentMachines.length) {
+                optAll.textContent = '[Semua Mesin Belum Approved] - Reject untuk sisa mesin yang belum diapprove (' + unapprovedCount + ' Mesin)';
+            } else {
+                optAll.textContent = '[Semua Mesin] - Reject hari terpilih untuk seluruh mesin (' + currentMachines.length + ' Mesin)';
+            }
             selectMachine.appendChild(optAll);
 
             currentMachines.forEach(function (m, idx) {
@@ -569,7 +593,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 opt.dataset.index = idx;
                 opt.dataset.device = m.device;
                 opt.dataset.process = m.process;
-                opt.textContent = 'Mesin ' + m.machno + ' (' + m.device_name + ' - ' + m.process_name + ')';
+                
+                const isApproved = (currentDept === 'qc') ? m.is_approved_qc : m.is_approved_production;
+                if (isApproved) {
+                    opt.disabled = true;
+                    opt.textContent = 'Mesin ' + m.machno + ' (' + m.device_name + ' - ' + m.process_name + ') [Approved - Tidak Dapat Di-reject]';
+                    opt.style.color = '#6c757d';
+                    opt.style.backgroundColor = '#f8f9fa';
+                } else {
+                    opt.textContent = 'Mesin ' + m.machno + ' (' + m.device_name + ' - ' + m.process_name + ')';
+                }
                 selectMachine.appendChild(opt);
             });
         } else {
@@ -598,6 +631,7 @@ document.addEventListener('DOMContentLoaded', function () {
             currentProcess = this.getAttribute('data-process') || '-';
             currentMachno = this.getAttribute('data-machno') || '-';
             const dept = this.getAttribute('data-dept') || 'qc';
+            currentDept = dept.toLowerCase();
 
             try {
                 currentActiveDates = JSON.parse(this.getAttribute('data-active-dates') || '{}');
@@ -842,5 +876,6 @@ document.addEventListener('DOMContentLoaded', function () {
     font-size: 0.75rem;
 }
 </style>
+<?= $this->include('layout/modal_confirm_weekly_approve'); ?>
 </main>
 <?= $this->endSection(); ?>

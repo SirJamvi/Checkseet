@@ -1192,8 +1192,6 @@ class ExcelGenerator
                             if ($isHeaderCell) {
                                 $style->getFont()->setBold(true);
                                 $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
-                            } else if ($cleanVal === '✗') {
-                                $style->getFont()->getColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_RED);
                             }
                             
                             for ($rr = $r; $rr < $r + $rowspan; $rr++) {
@@ -1217,8 +1215,6 @@ class ExcelGenerator
                     if ($isHeaderCell) {
                         $style->getFont()->setBold(true);
                         $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
-                    } else if ($cleanVal === '✗') {
-                        $style->getFont()->getColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_RED);
                     }
                 }
             }

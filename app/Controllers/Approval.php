@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\StartupModel;
 use App\Models\LogActivityModel;
 use App\Models\WeeklyApprovalModel;
+use App\Models\WeeklyDocumentApprovalModel;
 use App\Models\ProductionModel;
 
 class Approval extends BaseController
@@ -333,6 +334,27 @@ class Approval extends BaseController
             }
         }
 
+        // Ambil status approval per-dokumen spesifik
+        $docModel = new WeeklyDocumentApprovalModel();
+        $docApprovals = $docModel->getGroupedByWeeklyId($weeklyId);
+
+        foreach ($machines as $k => $m) {
+            $docKey = trim((string)$m['device']) . '___' . trim((string)$m['process']) . '___' . trim((string)$m['machno']);
+            $docApp = $docApprovals[$docKey] ?? null;
+
+            $statusQc   = $docApp['status_qc'] ?? 'Pending';
+            $statusProd = $docApp['status_production'] ?? 'Pending';
+
+            $machines[$k]['status_qc']              = $statusQc;
+            $machines[$k]['approver_qc']            = $docApp['approver_qc'] ?? null;
+            $machines[$k]['date_qc']                = $docApp['date_qc'] ?? null;
+            $machines[$k]['status_production']      = $statusProd;
+            $machines[$k]['approver_production']    = $docApp['approver_production'] ?? null;
+            $machines[$k]['date_production']        = $docApp['date_production'] ?? null;
+            $machines[$k]['is_approved_qc']         = ($statusQc === 'Approve');
+            $machines[$k]['is_approved_production'] = ($statusProd === 'Approve');
+        }
+
         return $this->response->setJSON([
             'status'   => 'success',
             'machines' => array_values($machines)
@@ -413,7 +435,14 @@ class Approval extends BaseController
 
     public function processWeekly()
     {
+        $isAjax = $this->request->isAJAX() 
+               || $this->request->getHeaderLine('X-Requested-With') === 'XMLHttpRequest' 
+               || str_contains($this->request->getHeaderLine('Accept'), 'application/json');
+
         if(!$this->session->has('name')){
+            if ($isAjax) {
+                return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Sesi login telah berakhir, silakan login kembali.']);
+            }
             return redirect()->to(base_url().'login');
         }
 
@@ -430,8 +459,12 @@ class Approval extends BaseController
 
         $batch = $weeklyModel->find($weekly_id);
         if (!$batch) {
-            $this->session->setFlashdata('error', 'Data approval tidak ditemukan.');
-        return redirect()->to(base_url().'approval/weekly?type=startup');
+            $msg = 'Data approval tidak ditemukan.';
+            if ($isAjax) {
+                return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => $msg]);
+            }
+            $this->session->setFlashdata('error', $msg);
+            return redirect()->to(base_url().'approval/weekly?type=startup');
         }
 
         $isProduction = (!empty($batch['doc_type']) && $batch['doc_type'] === 'production');
@@ -442,8 +475,12 @@ class Approval extends BaseController
         if ($isProduction) {
             // Validasi Otoritas Akses: bisa QC atau Production (salah satu)
             if (!$canQc && !$canProd) {
-                $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC atau Production.');
-        return redirect()->to(base_url().'approval/weekly?type=production');
+                $msg = 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC atau Production.';
+                if ($isAjax) {
+                    return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => $msg]);
+                }
+                $this->session->setFlashdata('error', $msg);
+                return redirect()->to(base_url().'approval/weekly?type=production');
             }
 
             // Syarat Wajib Penuh: Harus sudah mencapai tepat 20 data per lembar
@@ -454,8 +491,12 @@ class Approval extends BaseController
                 ->countAllResults();
 
             if ($action === 'Approve' && $totalCount < 20) {
-                $this->session->setFlashdata('error', "Persetujuan ditolak: Lembar checksheet ini belum penuh (baru {$totalCount}/20 data). Tunggu sampai genap 20 data (1 lembar penuh) sebelum approval.");
-        return redirect()->to(base_url().'approval/weekly?type=production');
+                $msg = "Persetujuan ditolak: Lembar checksheet ini belum penuh (baru {$totalCount}/20 data). Tunggu sampai genap 20 data (1 lembar penuh) sebelum approval.";
+                if ($isAjax) {
+                    return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => $msg]);
+                }
+                $this->session->setFlashdata('error', $msg);
+                return redirect()->to(base_url().'approval/weekly?type=production');
             }
 
             // Single Check: Dilakukan oleh QC atau Prod salah satu saja
@@ -478,27 +519,190 @@ class Approval extends BaseController
 
             $weeklyModel->update($weekly_id, $updateData);
             $pageInfo = !empty($batch['page_no']) ? " (Lembar {$batch['page_no']})" : "";
-            $this->session->setFlashdata('message', "Lembar Production #{$weekly_id}{$pageInfo} berhasil di-{$action} oleh {$approverName} ({$approverRole}).");
+            $msg = "Lembar Production #{$weekly_id}{$pageInfo} berhasil di-{$action} oleh {$approverName} ({$approverRole}).";
 
-        return redirect()->to(base_url().'approval/weekly?type=production');
+            if ($isAjax) {
+                return $this->response->setJSON(['status' => 'success', 'message' => $msg]);
+            }
+            $this->session->setFlashdata('message', $msg);
+            return redirect()->to(base_url().'approval/weekly?type=production');
         }
 
         // =========================================================================
         // 2. LOGIKA APPROVAL STARTUP MINGGUAN (Validasi Peran Departemen Ketat)
         // =========================================================================
+        $targetDevice  = trim((string)($this->request->getPost('device') ?? ''));
+        $targetProcess = trim((string)($this->request->getPost('process') ?? ''));
+        $targetMachno  = trim((string)($this->request->getPost('machno') ?? ''));
+        $isSpecificDoc = (!empty($targetDevice) && !empty($targetProcess));
+
         // Validasi Otoritas Akses Departemen
+        $backUrlFallback = $isSpecificDoc 
+            ? base_url('approval/weekly_form/' . $weekly_id . '?device=' . urlencode($targetDevice) . '&process=' . urlencode($targetProcess) . '&machno=' . urlencode($targetMachno))
+            : base_url('approval/weekly?type=startup');
+
         if ($departemen === 'qc' && !$canQc) {
-            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC/QA. Hanya Leader/Foreman/Supervisor QC/QA yang diizinkan menyetujui bagian QC.');
-            return redirect()->to(base_url().'approval/weekly?type=startup');
+            $msg = 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC/QA. Hanya Leader/Foreman/Supervisor QC/QA yang diizinkan menyetujui bagian QC.';
+            if ($isAjax) {
+                return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => $msg]);
+            }
+            $this->session->setFlashdata('error', $msg);
+            return redirect()->to($backUrlFallback);
         }
         if ($departemen === 'production' && !$canProd) {
-            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan Production. Hanya Leader/Foreman/Supervisor Production yang diizinkan menyetujui bagian Production.');
-            return redirect()->to(base_url().'approval/weekly?type=startup');
+            $msg = 'Akses ditolak: Anda tidak memiliki otoritas persetujuan Production. Hanya Leader/Foreman/Supervisor Production yang diizinkan menyetujui bagian Production.';
+            if ($isAjax) {
+                return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => $msg]);
+            }
+            $this->session->setFlashdata('error', $msg);
+            return redirect()->to($backUrlFallback);
         }
 
-        // Syarat Wajib Lengkap Startup: Daily approval harus sudah selesai
+        $approverName = $this->session->get('name') ?? 'Approver';
+        $now = date('Y-m-d H:i:s');
+        $db = \Config\Database::connect();
+        $docModel = new WeeklyDocumentApprovalModel();
+
+        // -------------------------------------------------------------------------
+        // A. APPROVAL KHUSUS SPESIFIK DOKUMEN (Device, Process, No Mesin)
+        // -------------------------------------------------------------------------
+        if ($isSpecificDoc) {
+            // Syarat Wajib Lengkap: Daily approval untuk dokumen mesin ini harus sudah selesai
+            $pendingDocQ = $db->table('startup')
+                ->where('weekly_id', $weekly_id)
+                ->where('device', $targetDevice)
+                ->where('process', $targetProcess)
+                ->where('par000', '1')
+                ->groupStart()
+                    ->where('status', 'Pending')
+                    ->orWhere('status', 'Reject')
+                    ->orWhere('status IS NULL')
+                    ->orWhere('status', '')
+                    ->orWhere('status', '-')
+                ->groupEnd();
+
+            if ($targetMachno !== '' && $targetMachno !== '-' && $targetMachno !== 'null') {
+                $pendingDocQ->where('machno', $targetMachno);
+            } else {
+                $pendingDocQ->groupStart()
+                    ->where('machno', '')
+                    ->orWhere('machno', '-')
+                    ->orWhere('machno IS NULL')
+                    ->orWhere('machno', 'null')
+                ->groupEnd();
+            }
+            $pendingDaily = $pendingDocQ->countAllResults();
+
+            if ($pendingDaily > 0) {
+                $msg = "Persetujuan ditolak: Masih terdapat {$pendingDaily} checksheet startup harian untuk dokumen mesin ini yang berstatus Pending atau Reject. Selesaikan daily approval terlebih dahulu.";
+                if ($isAjax) {
+                    return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => $msg]);
+                }
+                $this->session->setFlashdata('error', $msg);
+                return redirect()->to($backUrlFallback);
+            }
+
+            $existingDoc = $docModel->getDocApproval($weekly_id, $targetDevice, $targetProcess, $targetMachno);
+            $statusField   = ($departemen === 'qc') ? 'status_qc' : 'status_production';
+            $approverField = ($departemen === 'qc') ? 'approver_qc' : 'approver_production';
+            $dateField     = ($departemen === 'qc') ? 'date_qc' : 'date_production';
+
+            if ($existingDoc && $existingDoc[$statusField] === 'Approve') {
+                $msg = "Dokumen mesin " . ($targetMachno ?: '-') . " sudah disetujui sebelumnya oleh " . esc($existingDoc[$approverField]) . ".";
+                if ($isAjax) {
+                    return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => $msg]);
+                }
+                $this->session->setFlashdata('error', $msg);
+                return redirect()->to($backUrlFallback);
+            }
+
+            // Simpan / Perbarui approval spesifik dokumen
+            if ($existingDoc) {
+                $docModel->update($existingDoc['id'], [
+                    $statusField   => 'Approve',
+                    $approverField => $approverName,
+                    $dateField     => $now,
+                    'updated_at'   => $now
+                ]);
+            } else {
+                $docModel->insert([
+                    'weekly_id'           => $weekly_id,
+                    'device'              => $targetDevice,
+                    'process'             => $targetProcess,
+                    'machno'              => $targetMachno,
+                    'status_qc'           => ($departemen === 'qc') ? 'Approve' : 'Pending',
+                    'approver_qc'         => ($departemen === 'qc') ? $approverName : null,
+                    'date_qc'             => ($departemen === 'qc') ? $now : null,
+                    'status_production'   => ($departemen === 'production') ? 'Approve' : 'Pending',
+                    'approver_production' => ($departemen === 'production') ? $approverName : null,
+                    'date_production'     => ($departemen === 'production') ? $now : null,
+                    'created_at'          => $now,
+                    'updated_at'          => $now
+                ]);
+            }
+
+            // Periksa apakah SELURUH dokumen pada weekly batch ini sudah disetujui oleh departemen ini
+            $allDistinctDocs = $db->table('startup')
+                ->select('device, process, COALESCE(machno, "") as machno')
+                ->where('weekly_id', $weekly_id)
+                ->where('par000', '1')
+                ->groupBy('device, process, COALESCE(machno, "")')
+                ->get()->getResultArray();
+            $totalDistinct = count($allDistinctDocs);
+
+            $approvedDocsDept = $docModel->where('weekly_id', $weekly_id)
+                ->where($statusField, 'Approve')
+                ->findAll();
+            $approvedDeptMap = [];
+            foreach ($approvedDocsDept as $ad) {
+                $approvedDeptMap[trim((string)$ad['device']) . '___' . trim((string)$ad['process']) . '___' . trim((string)$ad['machno'])] = true;
+            }
+
+            $allDeptDone = true;
+            foreach ($allDistinctDocs as $doc) {
+                $k = trim((string)$doc['device']) . '___' . trim((string)$doc['process']) . '___' . trim((string)$doc['machno']);
+                if (!isset($approvedDeptMap[$k])) {
+                    $allDeptDone = false;
+                    break;
+                }
+            }
+
+            // Jika semua dokumen sudah approve untuk departemen ini, sinkronkan ke weekly_approvals parent
+            if ($allDeptDone && $totalDistinct > 0) {
+                $curWeekly = $weeklyModel->find($weekly_id);
+                $otherStatusField = ($departemen === 'qc') ? 'status_production' : 'status_qc';
+                $isOtherApproved  = (!empty($curWeekly[$otherStatusField]) && $curWeekly[$otherStatusField] === 'Approve');
+
+                $weeklyUpdate = [
+                    $statusField   => 'Approve',
+                    $approverField => $approverName,
+                    $dateField     => $now,
+                    'updated_at'   => $now
+                ];
+                if ($isOtherApproved) {
+                    $weeklyUpdate['status']        = 'Approved';
+                    $weeklyUpdate['rejected_days'] = null;
+                    $weeklyUpdate['reject_note']   = null;
+                    $weeklyUpdate['rejected_by']   = null;
+                    $weeklyUpdate['rejected_at']   = null;
+                }
+                $weeklyModel->update($weekly_id, $weeklyUpdate);
+            }
+
+            $machLabel = ($targetMachno !== '' && $targetMachno !== '-') ? "Mesin {$targetMachno}" : "Dokumen";
+            $msg = "Dokumen {$machLabel} ({$targetDevice} - {$targetProcess}) berhasil di-approve untuk " . strtoupper($departemen) . " oleh {$approverName}.";
+            if ($isAjax) {
+                return $this->response->setJSON(['status' => 'success', 'message' => $msg]);
+            }
+            $this->session->setFlashdata('message', $msg);
+            return redirect()->to($backUrlFallback);
+        }
+
+        // -------------------------------------------------------------------------
+        // B. APPROVAL BATCH MINGGUAN (Dari Halaman Utama weekly?type=startup)
+        // -------------------------------------------------------------------------
+        // Syarat Wajib Lengkap: Seluruh daily checks pada minggu ini harus sudah selesai
         if ($action === 'Approve') {
-            $db = \Config\Database::connect();
             $pendingDaily = $db->table('startup')
                 ->where('weekly_id', $weekly_id)
                 ->where('par000', '1')
@@ -512,45 +716,99 @@ class Approval extends BaseController
                 ->countAllResults();
 
             if ($pendingDaily > 0) {
-                $this->session->setFlashdata('error', "Persetujuan ditolak: Masih terdapat {$pendingDaily} checksheet startup harian pada minggu ini yang berstatus Pending atau Reject. Selesaikan perbaikan dan daily approval terlebih dahulu.");
-        return redirect()->to(base_url().'approval/weekly?type=startup');
-            }
-        }
-
-        $approverName = $this->session->get('name') ?? 'Approver';
-        $now = date('Y-m-d H:i:s');
-
-        $updateData = [];
-        if ($departemen === 'qc') {
-            $updateData['status_qc']   = $action;
-            $updateData['approver_qc'] = $approverName;
-            $updateData['date_qc']     = $now;
-        } else if ($departemen === 'production') {
-            $updateData['status_production']   = $action;
-            $updateData['approver_production'] = $approverName;
-            $updateData['date_production']     = $now;
-        }
-
-        if (!empty($updateData)) {
-            $curWeekly = $weeklyModel->find($weekly_id);
-            $qcApproved = ($departemen === 'qc' && $action === 'Approve') || (!empty($curWeekly['status_qc']) && $curWeekly['status_qc'] === 'Approve');
-            $prodApproved = ($departemen === 'production' && $action === 'Approve') || (!empty($curWeekly['status_production']) && $curWeekly['status_production'] === 'Approve');
-
-            if ($action === 'Approve') {
-                if ($qcApproved && $prodApproved) {
-                    $updateData['status']        = 'Approved';
-                    $updateData['rejected_days'] = null;
-                    $updateData['reject_note']   = null;
-                    $updateData['rejected_by']   = null;
-                    $updateData['rejected_at']   = null;
-                } else {
-                    $updateData['status'] = 'Pending';
+                $msg = "Persetujuan ditolak: Masih terdapat {$pendingDaily} checksheet startup harian pada minggu ini yang berstatus Pending atau Reject. Selesaikan perbaikan dan daily approval terlebih dahulu.";
+                if ($isAjax) {
+                    return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => $msg]);
                 }
+                $this->session->setFlashdata('error', $msg);
+                return redirect()->to(base_url().'approval/weekly?type=startup');
             }
-
-            $weeklyModel->update($weekly_id, $updateData);
-            $this->session->setFlashdata('message', "Data mingguan #{$weekly_id} berhasil di-{$action} oleh {$approverName} (" . strtoupper($departemen) . ").");
         }
+
+        // Ambil data approval spesifik dokumen yang sudah ada (untuk SKIP dokumen yang sudah diapprove)
+        $existingDocMap = $docModel->getGroupedByWeeklyId($weekly_id);
+
+        $allDocs = $db->table('startup')
+            ->select('device, process, COALESCE(machno, "") as machno')
+            ->where('weekly_id', $weekly_id)
+            ->where('par000', '1')
+            ->groupBy('device, process, COALESCE(machno, "")')
+            ->get()->getResultArray();
+
+        $statusField   = ($departemen === 'qc') ? 'status_qc' : 'status_production';
+        $approverField = ($departemen === 'qc') ? 'approver_qc' : 'approver_production';
+        $dateField     = ($departemen === 'qc') ? 'date_qc' : 'date_production';
+
+        $skippedCount  = 0;
+        $approvedCount = 0;
+
+        foreach ($allDocs as $doc) {
+            $dDev  = trim((string)$doc['device']);
+            $dProc = trim((string)$doc['process']);
+            $dMach = trim((string)$doc['machno']);
+            $key   = $dDev . '___' . $dProc . '___' . $dMach;
+
+            if (isset($existingDocMap[$key])) {
+                $docRec = $existingDocMap[$key];
+                // JIKA SUDAH APPROVED OLEH DEPARTEMEN INI: SKIP! TIDAK DITIMPA!
+                if ($docRec[$statusField] === 'Approve') {
+                    $skippedCount++;
+                    continue;
+                }
+                $docModel->update($docRec['id'], [
+                    $statusField   => 'Approve',
+                    $approverField => $approverName,
+                    $dateField     => $now,
+                    'updated_at'   => $now
+                ]);
+                $approvedCount++;
+            } else {
+                $docModel->insert([
+                    'weekly_id'           => $weekly_id,
+                    'device'              => $dDev,
+                    'process'             => $dProc,
+                    'machno'              => $dMach,
+                    'status_qc'           => ($departemen === 'qc') ? 'Approve' : 'Pending',
+                    'approver_qc'         => ($departemen === 'qc') ? $approverName : null,
+                    'date_qc'             => ($departemen === 'qc') ? $now : null,
+                    'status_production'   => ($departemen === 'production') ? 'Approve' : 'Pending',
+                    'approver_production' => ($departemen === 'production') ? $approverName : null,
+                    'date_production'     => ($departemen === 'production') ? $now : null,
+                    'created_at'          => $now,
+                    'updated_at'          => $now
+                ]);
+                $approvedCount++;
+            }
+        }
+
+        $curWeekly = $weeklyModel->find($weekly_id);
+        $otherStatusField = ($departemen === 'qc') ? 'status_production' : 'status_qc';
+        $isOtherApproved  = (!empty($curWeekly[$otherStatusField]) && $curWeekly[$otherStatusField] === 'Approve');
+
+        $updateData = [
+            $statusField   => 'Approve',
+            $approverField => $approverName,
+            $dateField     => $now,
+            'updated_at'   => $now
+        ];
+        if ($isOtherApproved) {
+            $updateData['status']        = 'Approved';
+            $updateData['rejected_days'] = null;
+            $updateData['reject_note']   = null;
+            $updateData['rejected_by']   = null;
+            $updateData['rejected_at']   = null;
+        } else {
+            $updateData['status'] = 'Pending';
+        }
+        $weeklyModel->update($weekly_id, $updateData);
+
+        $skipInfo = ($skippedCount > 0) ? " ({$skippedCount} dokumen yang sudah diapprove satuan di-skip)" : "";
+        $msg = "Data mingguan #{$weekly_id} berhasil di-approve untuk " . strtoupper($departemen) . " oleh {$approverName}.{$skipInfo}";
+        
+        if ($isAjax) {
+            return $this->response->setJSON(['status' => 'success', 'message' => $msg]);
+        }
+        $this->session->setFlashdata('message', $msg);
 
         return redirect()->to(base_url().'approval/weekly?type=startup');
     }
@@ -704,6 +962,37 @@ class Approval extends BaseController
             $targetProcess = '';
         }
 
+        $db = \Config\Database::connect();
+        $docModel = new WeeklyDocumentApprovalModel();
+        $deptStatusField = ($departemen === 'qc') ? 'status_qc' : 'status_production';
+
+        // 1. Validasi Proteksi: Jika menargetkan mesin tertentu yang sudah disetujui (Approved)
+        if (!empty($targetMachno)) {
+            $existingDoc = $docModel->getDocApproval($weekly_id, $targetDevice, $targetProcess, $targetMachno);
+            if ($existingDoc && ($existingDoc[$deptStatusField] === 'Approve' || ($existingDoc['status_qc'] === 'Approve' && $existingDoc['status_production'] === 'Approve'))) {
+                $this->session->setFlashdata('error', "Penolakan ditolak: Mesin {$targetMachno} sudah disetujui (Approved) secara spesifik dan tidak dapat di-reject.");
+                return redirect()->to($backUrl);
+            }
+        }
+
+        // 2. Validasi Proteksi: Jika menargetkan Semua Mesin (ALL)
+        $approvedDocs = $docModel->where('weekly_id', $weekly_id)
+            ->where($deptStatusField, 'Approve')
+            ->findAll();
+        $approvedMachnos = array_unique(array_filter(array_column($approvedDocs, 'machno')));
+
+        $allBatchMachines = $db->table('startup')
+            ->select('DISTINCT machno')
+            ->where('weekly_id', $weekly_id)
+            ->where('par000', '1')
+            ->get()->getResultArray();
+        $allBatchMachnos = array_unique(array_filter(array_column($allBatchMachines, 'machno')));
+
+        if (empty($targetMachno) && !empty($allBatchMachnos) && count($approvedMachnos) >= count($allBatchMachnos)) {
+            $this->session->setFlashdata('error', "Penolakan ditolak: Seluruh mesin pada minggu ini sudah berstatus Approved dan tidak dapat di-reject.");
+            return redirect()->to($backUrl);
+        }
+
         $approverName = $this->session->get('name') ?? 'Approver';
         $approverRole = ($departemen === 'qc' || ($canQc && !$canProd)) ? 'QC' : 'Production';
         if ($departemen === 'production' && $canProd) {
@@ -769,6 +1058,9 @@ class Approval extends BaseController
                 $syncStartup->where('machno', $targetMachno);
             } elseif (!empty($weeklyRecord['machno'])) {
                 $syncStartup->where('machno', $weeklyRecord['machno']);
+            } elseif (!empty($approvedMachnos)) {
+                // Jangan sentuh / unlock mesin-mesin yang sudah diapprove
+                $syncStartup->whereNotIn('machno', $approvedMachnos);
             }
 
             $syncStartup->update([
@@ -970,9 +1262,14 @@ class Approval extends BaseController
             }
         }
 
-        // Hitung total_days berdasarkan jumlah hari/tanggal unik yang terisi
+        // Hitung total_days dan sematkan status approval per dokumen
+        $docModel = new WeeklyDocumentApprovalModel();
+        $docApprovals = $docModel->getGroupedByWeeklyId($id);
+
         foreach ($groupedData as $k => $item) {
             $groupedData[$k]['total_days'] = count($item['dates']);
+            $docKey = trim((string)$item['device']) . '___' . trim((string)$item['process']) . '___' . trim((string)$item['machno']);
+            $groupedData[$k]['doc_approval'] = $docApprovals[$docKey] ?? null;
         }
 
         // Urutkan grup berdasarkan device, proses, nomor mesin
@@ -1065,19 +1362,62 @@ class Approval extends BaseController
             $tableHtml = "<div class='alert alert-danger'>Template form checksheet untuk proses " . esc($actualProcess) . " belum tersedia (File layout tidak ditemukan).</div>";
         }
 
+        $docModel = new WeeklyDocumentApprovalModel();
+        $docApproval = $docModel->getDocApproval($weekly_id, $actualDevice, $actualProcess, $actualMachno);
+
+        $auth    = $this->getUserApprovalAuthority();
+        $isAdmin = $auth['is_admin'];
+        $canQc   = $auth['can_qc'];
+        $canProd = $auth['can_production'];
+
+        // Cek jika terdapat daily checksheet yang belum di-approve untuk dokumen ini
+        $pendingDocQ = $db->table('startup')
+            ->where('weekly_id', $weekly_id)
+            ->where('device', $actualDevice)
+            ->where('process', $actualProcess)
+            ->where('par000', '1')
+            ->groupStart()
+                ->where('status', 'Pending')
+                ->orWhere('status', 'Reject')
+                ->orWhere('status IS NULL')
+                ->orWhere('status', '')
+                ->orWhere('status', '-')
+            ->groupEnd();
+
+        if ($actualMachno !== '' && $actualMachno !== '-' && $actualMachno !== 'null') {
+            $pendingDocQ->where('machno', $actualMachno);
+        } else {
+            $pendingDocQ->groupStart()
+                ->where('machno', '')
+                ->orWhere('machno', '-')
+                ->orWhere('machno IS NULL')
+                ->orWhere('machno', 'null')
+            ->groupEnd();
+        }
+        $pendingDailyDocCount = $pendingDocQ->countAllResults();
+
         $data = [
-            'title'        => 'Checksheet Mingguan (7 Hari) - ' . ($processInfo['name'] ?? $actualProcess),
-            'weekly_id'    => $weekly_id,
-            'period_start' => $periodStart,
-            'period_end'   => $periodEnd,
-            'device'       => $actualDevice,
-            'device_name'  => $deviceInfo['name'] ?? $actualDevice,
-            'process'      => $actualProcess,
-            'process_name' => $processInfo['name'] ?? $actualProcess,
-            'machno'       => $actualMachno,
-            'alldata'      => $alldata,
-            'machnoHidden' => $machnoHidden,
-            'tableHtml'    => $tableHtml
+            'title'               => 'Checksheet Mingguan (7 Hari) - ' . ($processInfo['name'] ?? $actualProcess),
+            'weekly_id'           => $weekly_id,
+            'period_start'        => $periodStart,
+            'period_end'          => $periodEnd,
+            'device'              => $actualDevice,
+            'device_name'         => $deviceInfo['name'] ?? $actualDevice,
+            'process'             => $actualProcess,
+            'process_name'        => $processInfo['name'] ?? $actualProcess,
+            'machno'              => $actualMachno,
+            'alldata'             => $alldata,
+            'machnoHidden'        => $machnoHidden,
+            'tableHtml'           => $tableHtml,
+            'docApproval'         => $docApproval,
+            'canQc'               => $canQc,
+            'canProd'             => $canProd,
+            'can_qc'              => $canQc,
+            'can_prod'            => $canProd,
+            'isAdmin'             => $isAdmin,
+            'user_dept'           => $auth['department'],
+            'user_role'           => $this->session->get('role'),
+            'pending_daily_count' => $pendingDailyDocCount
         ];
 
         return view('weekly_form_detail', $data);

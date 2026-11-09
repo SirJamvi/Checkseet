@@ -394,15 +394,6 @@ window.validateDynamicUnit = function(paramId) {
             }
             window.validateDynamicUnit('par008');
             window.combineData('par008');
-
-            var hidEl = document.getElementById('par008');
-            if (!valEl.value || String(valEl.value).trim() === '' || !hidEl || String(hidEl.value).trim() === '') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                alert('Item 7 (@ Colled Load) wajib diisi sesuai standar (0.60 ~ 1.00 N atau 60 ~ 100 gr)!');
-                valEl.focus();
-                return false;
-            }
         }, true);
     }
 })();
