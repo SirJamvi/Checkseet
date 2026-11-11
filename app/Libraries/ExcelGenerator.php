@@ -362,15 +362,15 @@ class ExcelGenerator
                 if ($gridCol === 1 && ($headerLabel === 'no' || $headerLabel === 'no.')) {
                     $colWidth = 4.5;
                 } elseif (strpos($headerLabel, 'operator') !== false) {
-                    $colWidth = 22.15;
+                    $colWidth = 10;
                 } elseif (strpos($headerLabel, 'shift') !== false || strpos($headerLabel, 'group') !== false) {
-                    $colWidth = 12.55;
+                    $colWidth = 14;
                 } elseif (strpos($headerLabel, 'mch') !== false || strpos($headerLabel, 'mach') !== false) {
-                    $colWidth = 10.10;
+                    $colWidth = 12;
                 } elseif (strpos($headerLabel, 'model') !== false) {
-                    $colWidth = 15.5;
+                    $colWidth = 22;
                 } elseif (strpos($headerLabel, 'lot') !== false) {
-                    $colWidth = 14.10;
+                    $colWidth = 19;
                 } elseif (strpos($headerLabel, 'date') !== false) {
                     $colWidth = 14.55;
                 } elseif (

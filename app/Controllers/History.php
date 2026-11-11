@@ -146,18 +146,24 @@ class History extends BaseController
         string $dateEnd,
         string $model = '',
         string $lotno = '',
-        string $machno = ''
+        string $machno = '',
+        int $weeklyId = 0
     ): array {
         $alldata = [];
         if ($typeProcess === 'production') {
-            $alldata = $this->ProductionModel->getAll(
-                $dateStart,
-                $dateEnd,
-                $process,
-                $model,
-                $lotno,
-                $machno
-            );
+            if ($weeklyId > 0) {
+                // Export 1 lembar (batch weekly_id) -> sama persis dengan halaman detail_production
+                $alldata = $this->ProductionModel->getByWeeklyId($weeklyId);
+            } else {
+                $alldata = $this->ProductionModel->getAll(
+                    $dateStart,
+                    $dateEnd,
+                    $process,
+                    $model,
+                    $lotno,
+                    $machno
+                );
+            }
         } elseif ($typeProcess === 'foregoing') {
             $alldata = $this->ForegoingModel->getAll(
                 $dateStart,
@@ -438,7 +444,8 @@ class History extends BaseController
                 $dateEnd,
                 $model,
                 $lotno,
-                $machno
+                $machno,
+                (int) ($req->getGet('weekly_id') ?? 0)
             );
 
             $_SERVER['REQUEST_URI'] = 'exportExcel';
@@ -489,7 +496,8 @@ class History extends BaseController
                 $dateEnd,
                 $model,
                 $lotno,
-                $machno
+                $machno,
+                (int) ($req->getGet('weekly_id') ?? 0)
             );
 
             $_SERVER['REQUEST_URI'] = 'exportPDF';

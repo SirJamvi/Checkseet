@@ -96,9 +96,15 @@ class ProductionModel extends Model
     public function getAll($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $process = '', $model = '', $lotno = '', $machno = '')
     {
         $builder = $this->db->table('production')
-            ->where('created_at >=', $dateStart)
-            ->where('created_at <=', $dateEnd)
             ->where('process', $process);
+
+        // Filter tanggal hanya dipakai jika diisi (string kosong membuat hasil query selalu kosong)
+        if (!empty($dateStart)) {
+            $builder->where('created_at >=', $dateStart);
+        }
+        if (!empty($dateEnd)) {
+            $builder->where('created_at <=', $dateEnd);
+        }
 
         if ($model !== '' && $model !== null) {
             $builder->like('model', $model);
