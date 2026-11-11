@@ -16,7 +16,7 @@
 
   <?= $this->include('layout/navbar'); ?>
 
-  <form name="checksheet" id="form-action" action="/input" method="POST">
+  <form name="checksheet" id="form-action" action="<?= base_url('input') ?>" method="POST">
   <?= csrf_field(); ?>
   <?php
     $session = \Config\Services::session();
@@ -264,7 +264,7 @@ $(document).ready(function()
     });
 
     $('#type-process-txt').change(function(){
-        document.getElementById("form-action").action = "/checkseet/" + document.getElementById("type-process-txt").value;
+        document.getElementById("form-action").action = "<?= base_url(); ?>" + document.getElementById("type-process-txt").value;
     });
 
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
@@ -482,7 +482,7 @@ function updateInput() {
         $('#standby-wrapper').slideDown();
     }
 
-    document.getElementById("form-action").action = "/checkseet/" + typeProcess;
+    document.getElementById("form-action").action = "<?= base_url(); ?>" + typeProcess;
 
     let cnt_error = document.getElementById("cnt-error-input");
     let submit_button = document.getElementById("submit");

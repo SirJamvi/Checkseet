@@ -77,7 +77,7 @@ class Production extends BaseController
     public function formInputProduction()
     {
         if (!$this->session->has('empid')) {
-            return redirect()->to('/checkseet/login');
+            return redirect()->to(base_url('login'));
         }
 
         $device  = $this->request->getGet('device');
@@ -106,7 +106,7 @@ class Production extends BaseController
     {
         if (!$this->session->has('empid')) {
             session()->setFlashdata('message', 'Login terlebih dahulu');
-            return redirect()->to('/checkseet/login');
+            return redirect()->to(base_url('login'));
         }
 
         $data = [
@@ -149,7 +149,7 @@ class Production extends BaseController
     {
         if (!$this->session->has('empid')) {
             session()->setFlashdata('message', 'Login terlebih dahulu');
-            return redirect()->to('/checkseet/login');
+            return redirect()->to(base_url('login'));
         }
 
         $this->ProductionModel->deleteByNumber($number);
