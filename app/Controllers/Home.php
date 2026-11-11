@@ -56,7 +56,7 @@ class Home extends BaseController
     {
         if (!$this->session->has('empid')) {
             session()->setFlashdata('message', 'Login terlebih dahulu');
-            return redirect()->to('');
+            return redirect()->to(base_url('login'));
         }
         $data = [
             'title' => 'Approval | Startup Management',

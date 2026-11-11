@@ -47,7 +47,7 @@ function updateTable()
     machno=$('#machno').val()
     console.log(dateStart,dateEnd,process,model,lotNo,machno);
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", "/approval-data?dateStart="+resDate.dateStart+" 00:00:00"+"&dateEnd="+resDate.dateEnd+" 23:59:59"+"&process="+$('#process').val()+"&model="+model+"&lotno="+lotNo+"&machno="+machno, true);
+    xhr.open("GET", (window.BASE_URL || '/') + "approval-data?dateStart="+resDate.dateStart+" 00:00:00"+"&dateEnd="+resDate.dateEnd+" 23:59:59"+"&process="+$('#process').val()+"&model="+model+"&lotno="+lotNo+"&machno="+machno, true);
     xhr.onload = (e) => {
     if (xhr.readyState === 4) {
         if (xhr.status === 200) {

@@ -41,7 +41,7 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, positionTag, empIdlTag)
     if (empid.length > 0)
     {
         $.ajax({
-            url: "/checkseet/home/ajaxAutofill", // Gunakan 'home' huruf kecil
+            url: (window.BASE_URL || '/') + "home/ajaxAutofill", // Gunakan 'home' huruf kecil
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             data:"empid-txt=" + empid,
@@ -125,7 +125,7 @@ function injectForm()
     }
 
     const xhr = new XMLHttpRequest();
-    var urlTarget = "/checkseet/production/edit/form?device=" + deviceVal + "&process=" + processVal + "&number=" + numberVal;
+    var urlTarget = (window.BASE_URL || '/') + "production/edit/form?device=" + deviceVal + "&process=" + processVal + "&number=" + numberVal;
     
     xhr.open("GET", urlTarget, true);
     xhr.onload = (e) => {

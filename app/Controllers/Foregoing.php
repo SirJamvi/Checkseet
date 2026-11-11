@@ -99,7 +99,7 @@ class Foregoing extends BaseController
     public function index(): string
     {
         if (!$this->session->has('empid')) {
-            return redirect()->to('/checkseet/login');
+            return redirect()->to(base_url('login'));
         }
 
         $empid = trim((string) $this->session->get('empid'));
