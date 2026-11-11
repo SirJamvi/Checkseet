@@ -294,16 +294,16 @@ class History extends BaseController
         if ($typeProcess === 'startup') {
             $weeklyModel = new \App\Models\WeeklyApprovalModel();
             
-            $weeklyId = null;
-            if (!empty($alldata)) {
+            $weeklyId = (int) ($this->request->getGet('weekly_id') ?? 0);
+            if ($weeklyId <= 0 && !empty($alldata)) {
                 foreach ($alldata as $r) {
                     if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
-                        $weeklyId = $r['weekly_id'];
+                        $weeklyId = (int) $r['weekly_id'];
                         break;
                     }
                 }
             }
-            if ($weeklyId) {
+            if ($weeklyId > 0) {
                 $weeklyInfo = $weeklyModel->find($weeklyId);
             }
 
@@ -333,6 +333,54 @@ class History extends BaseController
                             ->where('period_end', $sunday)
                             ->orderBy('id', 'DESC')
                             ->first();
+                    }
+                }
+            }
+
+            if ($weeklyInfo && $weeklyId <= 0) {
+                $weeklyId = (int) ($weeklyInfo['id'] ?? 0);
+            }
+
+            // Integrasi Status Approval Khusus Dokumen (weekly_document_approvals)
+            $actualDevice  = !empty($device) ? $device : ($alldata[0]['device'] ?? '');
+            $actualProcess = !empty($process) ? $process : ($alldata[0]['process'] ?? '');
+            $actualMach    = ($machno !== '' && $machno !== 'ALL' && $machno !== 'null' && $machno !== '-') ? $machno : ($alldata[0]['machno'] ?? '');
+
+            if ($weeklyId > 0 && !empty($actualDevice) && !empty($actualProcess)) {
+                $docModel = new \App\Models\WeeklyDocumentApprovalModel();
+                $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, $actualMach);
+                if (!$docApproval && ($actualMach === '-' || $actualMach === '' || $actualMach === 'null')) {
+                    $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, '');
+                    if (!$docApproval) {
+                        $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, '-');
+                    }
+                }
+                if (!$docApproval && $actualMach !== '') {
+                    $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, '');
+                }
+
+                if ($docApproval) {
+                    if (!$weeklyInfo) {
+                        $weeklyInfo = [
+                            'id'                  => $weeklyId,
+                            'status_qc'           => $docApproval['status_qc'] ?? 'Pending',
+                            'approver_qc'         => $docApproval['approver_qc'] ?? null,
+                            'date_qc'             => $docApproval['date_qc'] ?? null,
+                            'status_production'   => $docApproval['status_production'] ?? 'Pending',
+                            'approver_production' => $docApproval['approver_production'] ?? null,
+                            'date_production'     => $docApproval['date_production'] ?? null,
+                        ];
+                    } else {
+                        if (in_array(strtolower((string)($docApproval['status_qc'] ?? '')), ['approve', 'approved'])) {
+                            $weeklyInfo['status_qc']   = $docApproval['status_qc'];
+                            $weeklyInfo['approver_qc'] = $docApproval['approver_qc'];
+                            $weeklyInfo['date_qc']     = $docApproval['date_qc'];
+                        }
+                        if (in_array(strtolower((string)($docApproval['status_production'] ?? '')), ['approve', 'approved'])) {
+                            $weeklyInfo['status_production']   = $docApproval['status_production'];
+                            $weeklyInfo['approver_production'] = $docApproval['approver_production'];
+                            $weeklyInfo['date_production']     = $docApproval['date_production'];
+                        }
                     }
                 }
             }

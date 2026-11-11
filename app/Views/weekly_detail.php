@@ -180,11 +180,11 @@
                                            class="btn btn-sm btn-primary shadow-sm" target="_blank" title="Lihat Checksheet Lengkap 7 Hari">
                                             <i class="fas fa-eye me-1"></i> Lihat Form (7 Hari)
                                         </a>
-                                        <a href="<?= base_url('history/exportExcel?typeProcess=startup&dateStart=' . $mingguan['period_start'] . '&dateEnd=' . $mingguan['period_end'] . '&device=' . urlencode($row['device']) . '&process=' . urlencode($row['process']) . '&machno=' . urlencode($row['machno'])) ?>" 
+                                        <a href="<?= base_url('history/exportExcel?typeProcess=startup&dateStart=' . $mingguan['period_start'] . '&dateEnd=' . $mingguan['period_end'] . '&device=' . urlencode($row['device']) . '&process=' . urlencode($row['process']) . '&machno=' . urlencode($row['machno']) . '&weekly_id=' . $mingguan['id']) ?>" 
                                            class="btn btn-sm btn-success shadow-sm" target="_blank" title="Export Excel 7 Hari (Fit to 1 Page A4 Landscape)">
                                             <i class="fas fa-file-excel"></i>
                                         </a>
-                                        <a href="<?= base_url('history/exportPDF?typeProcess=startup&dateStart=' . $mingguan['period_start'] . '&dateEnd=' . $mingguan['period_end'] . '&device=' . urlencode($row['device']) . '&process=' . urlencode($row['process']) . '&machno=' . urlencode($row['machno'])) ?>" 
+                                        <a href="<?= base_url('history/exportPDF?typeProcess=startup&dateStart=' . $mingguan['period_start'] . '&dateEnd=' . $mingguan['period_end'] . '&device=' . urlencode($row['device']) . '&process=' . urlencode($row['process']) . '&machno=' . urlencode($row['machno']) . '&weekly_id=' . $mingguan['id']) ?>" 
                                            class="btn btn-sm btn-danger shadow-sm" target="_blank" title="Export PDF 7 Hari">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>

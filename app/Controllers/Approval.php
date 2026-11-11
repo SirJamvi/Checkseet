@@ -822,8 +822,12 @@ class Approval extends BaseController
         try {
             date_default_timezone_set('Asia/Jakarta');
             $db = \Config\Database::connect();
-            $startOfWeek = date('Y-m-d 00:00:00', strtotime('monday this week'));
-            $endOfWeek   = date('Y-m-d 23:59:59', strtotime('sunday this week'));
+            // Potong 7 jam untuk memanipulasi referensi "This Week" (Senin 07:00 - Senin 06:59)
+            $nowAdjusted = time() - (7 * 3600);
+            $baseMonday = date('Y-m-d', strtotime('monday this week', $nowAdjusted));
+            
+            $startOfWeek = $baseMonday . ' 07:00:00';
+            $endOfWeek   = date('Y-m-d', strtotime($baseMonday . ' +7 days')) . ' 06:59:59';
             $periodStart = date('Y-m-d', strtotime($startOfWeek));
             $periodEnd   = date('Y-m-d', strtotime($endOfWeek));
 

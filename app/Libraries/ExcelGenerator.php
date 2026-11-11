@@ -1025,14 +1025,14 @@ class ExcelGenerator
                 ->setBold(true);
 
             $qcBox = "";
-            if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
+            if (!empty($weeklyInfo['status_qc']) && in_array(strtolower((string) $weeklyInfo['status_qc']), ['approve', 'approved'])) {
                 $approverQc = !empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : 'Approved';
                 $dateQc = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime($weeklyInfo['date_qc'])) : '';
                 $qcBox = "Approved by:\n" . $approverQc . "\n(QC)\n" . $dateQc;
             }
 
             $prodBox = "";
-            if (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve') {
+            if (!empty($weeklyInfo['status_production']) && in_array(strtolower((string) $weeklyInfo['status_production']), ['approve', 'approved'])) {
                 $approverProd = !empty($weeklyInfo['approver_production']) ? $weeklyInfo['approver_production'] : 'Approved';
                 $dateProd = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime($weeklyInfo['date_production'])) : '';
                 $prodBox = "Approved by:\n" . $approverProd . "\n(Prod)\n" . $dateProd;

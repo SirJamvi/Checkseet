@@ -975,14 +975,14 @@ class PdfGenerator
 
         if ($typeProcess === 'startup') {
             $qcBox = '';
-            if (!empty($weeklyInfo['status_qc']) && strtolower((string) $weeklyInfo['status_qc']) === 'approve') {
+            if (!empty($weeklyInfo['status_qc']) && in_array(strtolower((string) $weeklyInfo['status_qc']), ['approve', 'approved'])) {
                 $approverQc = htmlspecialchars(!empty($weeklyInfo['approver_qc']) ? (string) $weeklyInfo['approver_qc'] : 'Approved', ENT_QUOTES, 'UTF-8');
                 $dateQc     = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime((string) $weeklyInfo['date_qc'])) : '';
                 $qcBox      = 'Approved by:<br>' . $approverQc . '<br>(QC)<br>' . $dateQc;
             }
 
             $prodBox = '';
-            if (!empty($weeklyInfo['status_production']) && strtolower((string) $weeklyInfo['status_production']) === 'approve') {
+            if (!empty($weeklyInfo['status_production']) && in_array(strtolower((string) $weeklyInfo['status_production']), ['approve', 'approved'])) {
                 $approverProd = htmlspecialchars(!empty($weeklyInfo['approver_production']) ? (string) $weeklyInfo['approver_production'] : 'Approved', ENT_QUOTES, 'UTF-8');
                 $dateProd     = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime((string) $weeklyInfo['date_production'])) : '';
                 $prodBox      = 'Approved by:<br>' . $approverProd . '<br>(Prod)<br>' . $dateProd;

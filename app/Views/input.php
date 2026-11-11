@@ -20,11 +20,9 @@
   <?= csrf_field(); ?>
   <?php
     $session = \Config\Services::session();
-    $nowHour = (int)date('H');
-    $isShiftCTime = ($nowHour >= 0 && $nowHour < 7);
     $today = date('Y-m-d');
     $yesterday = date('Y-m-d', strtotime('-1 day'));
-    $initialDate = $isShiftCTime ? $yesterday : $today;
+    $initialDate = $today;
   ?>
 
     <div class="container-fluid">
@@ -35,24 +33,6 @@
         <input type="hidden" name="cnt-error-input" id="cnt-error-input" value=0>
 
         <div class="card-body">
-          
-          <div class="alert <?= $isShiftCTime ? 'alert-warning' : 'alert-danger' ?> shadow-sm border-0 mb-4" role="alert" style="border-left: 5px solid <?= $isShiftCTime ? '#ffc107' : '#dc3545' ?>; background-color: <?= $isShiftCTime ? '#fffdf0' : '#fff5f5' ?>;">
-            <div class="d-flex align-items-center">
-                <i class="fas <?= $isShiftCTime ? 'fa-moon text-warning' : 'fa-exclamation-triangle text-danger' ?> fa-2x me-3"></i>
-                <div>
-                    <h6 class="alert-heading font-weight-bold mb-1 <?= $isShiftCTime ? 'text-dark' : 'text-danger' ?>">
-                        <?= $isShiftCTime ? 'SISTEM SHIFT C AKTIF (00:00 - 06:59 WIB)' : 'PERINGATAN PENTING & ATURAN SHIFT!' ?>
-                    </h6>
-                    <p class="mb-0 text-dark small">
-                        <?php if ($isShiftCTime): ?>
-                            Saat ini berada di rentang waktu <b>Shift C (Malam)</b>. Sistem secara <b>otomatis memilih Shift C</b> dan <b>memundurkan Tanggal Input ke tanggal operasional kemarin (<?= date('d/m/Y', strtotime($yesterday)) ?>)</b> serta memvalidasi penginputan agar tidak salah tanggal.
-                        <?php else: ?>
-                            Harap pastikan isian <b>Tanggal Input</b> dan pilihan <b>Shift Karyawan (A / B / C)</b> sudah benar sebelum submit. Untuk <b>Shift C (Malam)</b> yang melintasi tengah malam (pukul 00:00 - 06:59 WIB), sistem otomatis mengunci Shift C dan memundurkan Tanggal ke H-1.
-                        <?php endif; ?>
-                    </p>
-                </div>
-            </div>
-          </div>
 
           <div class="row">
             <div class="col-md-6">
@@ -63,9 +43,6 @@
                          value="<?= $initialDate ?>" 
                          min="<?= $yesterday ?>" 
                          max="<?= $today ?>" required>
-                  <small id="date-shiftc-hint" class="text-danger font-weight-bold <?= $isShiftCTime ? '' : 'd-none' ?>">
-                    * Shift C (00:00 - 06:59 WIB): Tanggal operasional otomatis tanggal kemarin (<?= date('d/m/Y', strtotime($yesterday)) ?>)
-                  </small>
                 </div>
               </div>
 
@@ -122,7 +99,6 @@
                 </div>
               </div>
 
-              <!-- UPDATE: Tambahkan class text-danger pada span bintang Model Name -->
               <div class="mb-3 row">
                 <label for="model-txt" class="col-sm-2 col-form-label">Model Name <span id="req-model" class="text-danger d-none">*</span></label>
                 <div class="col-sm-6">
@@ -160,7 +136,6 @@
             </div>
 
             <div class="col-md-6">
-              <!-- UPDATE: Tambahkan class text-danger pada span bintang Lot Number -->
               <div class="mb-3 row">
                 <label for="lotno-txt" class="col-sm-2 col-form-label">Lot Number <span id="req-lot" class="text-danger d-none">*</span></label>
                 <div class="col-sm-6">
@@ -204,9 +179,9 @@
                     <span class="input-group-text text-danger font-weight-bold" id="basic-addon2" style="background-color: #fff5f5;">Shift----:</span>
                     <select class="form-control font-weight-bold" id="shift-txt" name="shift-txt" required>
                         <option value="">Pilih Shift (Wajib)</option>
-                        <option value="A" <?= $isShiftCTime ? 'disabled' : '' ?>>A (Pagi)</option>
-                        <option value="B" <?= $isShiftCTime ? 'disabled' : '' ?>>B (Sore)</option>
-                        <option value="C" <?= $isShiftCTime ? 'selected' : '' ?>>C (Malam)</option>
+                        <option value="A">A (Pagi)</option>
+                        <option value="B">B (Sore)</option>
+                        <option value="C">C (Malam)</option>
                     </select>
                   </div>
 
@@ -267,35 +242,6 @@
 
 </main>
 <script>
-function isTimeShiftC() {
-    var now = new Date();
-    var hour = now.getHours();
-    return (hour >= 0 && hour < 7);
-}
-
-function getYesterdayStr() {
-    var d = new Date();
-    d.setDate(d.getDate() - 1);
-    var month = '' + (d.getMonth() + 1);
-    var day = '' + d.getDate();
-    var year = d.getFullYear();
-    if (month.length < 2) month = '0' + month;
-    if (day.length < 2) day = '0' + day;
-    return [year, month, day].join('-');
-}
-
-function applyShiftCRules() {
-    if (isTimeShiftC()) {
-        var yDate = getYesterdayStr();
-        $('#shift-txt').val('C');
-        $('#shift-txt option[value="A"]').prop('disabled', true);
-        $('#shift-txt option[value="B"]').prop('disabled', true);
-        $('#shift-txt option[value="C"]').prop('disabled', false).prop('selected', true);
-        $('#date').val(yDate);
-        $('#date-shiftc-hint').removeClass('d-none');
-    }
-}
-
 $(document).ready(function()
 {
     $('#machno-txt').select2({
@@ -309,28 +255,6 @@ $(document).ready(function()
     if($('#msgsuccess').html()!="Kosong"){
         alert($('#msgsuccess').html());
     }
-
-    applyShiftCRules();
-
-    $('#shift-txt').on('change', function() {
-        if (isTimeShiftC()) {
-            if ($(this).val() !== 'C') {
-                alert("PERHATIAN: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam).\nPilihan shift otomatis dikembalikan ke Shift C.");
-                $(this).val('C');
-            }
-            $('#date').val(getYesterdayStr());
-        }
-    });
-
-    $('#date').on('change', function() {
-        if (isTimeShiftC() && $('#shift-txt').val() === 'C') {
-            var yDate = getYesterdayStr();
-            if ($(this).val() !== yDate) {
-                alert("PERHATIAN: Pada pukul 00:00 - 06:59 WIB untuk Shift C (Malam), Tanggal Input WAJIB dimundurkan 1 hari (" + yDate + ") ke tanggal operasional shift kemarin.\nTanggal otomatis dikembalikan.");
-                $(this).val(yDate);
-            }
-        }
-    });
 
     $('#process-txt').change(function()
     {
@@ -353,23 +277,6 @@ function checkSubmit() {
         return false;
     }
 
-    if (isTimeShiftC()) {
-        var curShift = $('#shift-txt').val();
-        if (curShift !== 'C') {
-            alert("GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!");
-            $('#shift-txt').val('C').focus();
-            return false;
-        }
-        var yDate = getYesterdayStr();
-        var curDate = $('#date').val();
-        if (curDate !== yDate) {
-            alert("GAGAL: Pada pukul 00:00 - 06:59 WIB untuk Shift C, Tanggal Input WAJIB dimundurkan 1 hari ke tanggal operasional kemarin (" + yDate + ")!");
-            $('#date').val(yDate).focus();
-            return false;
-        }
-    }
-
-    // UPDATE: Penjagaan Wajib Isi Model & Lot
     var docType = $('#type-process-txt').val();
     if(docType === 'production' || docType === 'foregoing') {
         if(!$.trim($('#model-txt').val())) {
@@ -414,10 +321,7 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
     $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empid })
         .done(function (d) {
             if (d.found) {
-                if (isTimeShiftC()) {
-                    $(shiftTag).val('C');
-                    $('#date').val(getYesterdayStr());
-                } else if (d.acc && !$(shiftTag).val()) {
+                if (d.acc && !$(shiftTag).val()) {
                     var shiftVal = d.acc.toString();
                     if(shiftVal === '1') $(shiftTag).val('A');
                     else if(shiftVal === '2') $(shiftTag).val('B');
@@ -426,6 +330,7 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
                 }
                 if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
                 if (d.name && (!$(nameTag).val() || $(nameTag).val() === '-')) $(nameTag).val(d.name);
+                
                 if (d.acc && d.groupid) {
                     warn.removeClass('visible').addClass('invisible');
                 } else {
@@ -535,7 +440,6 @@ function updateInput() {
         form_input.innerHTML = "";
         document.getElementById('revisi-txt').value = "";
         
-        // Hapus styling bintang wajib jika kosong
         $('#req-model, #req-lot').addClass('d-none');
         document.getElementById('model-txt').required = false;
         document.getElementById('lotno-txt').required = false;
@@ -545,7 +449,6 @@ function updateInput() {
     device = process.split("-")[0];
     let revField = document.getElementById('revisi-txt');
 
-    // UPDATE: Set dynamic validation untuk prod & fore
     if(process.split("-")[1] == 'p'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('model-txt').required = true;

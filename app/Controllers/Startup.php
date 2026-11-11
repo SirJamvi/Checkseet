@@ -62,6 +62,13 @@ class Startup extends BaseController
         ];
         return view('startup', $data);
     }
+
+    // PENAMBAHAN METHOD ALIAS PENTING: Mencegah 500 Method Not Found jika sistem auto-routing mencari "Startup::form()"
+    public function form()
+    {
+        return $this->formInputStartup();
+    }
+
     public function formInputStartup()
     {
         if(!$this->session->has('empid')){
@@ -85,7 +92,8 @@ class Startup extends BaseController
         try {
             return view('/layout/'.$device."/input/".$folder."/".$process,$data);
         } catch (\Throwable $e) {
-            return "<div class='alert alert-danger'>Maaf, form input belum tersedia.</div>";
+            // Kita keluarkan pesan exceptionnya agar tidak jadi Error 500 (blank) di frontend
+            return "<div class='alert alert-danger shadow-sm' style='border-left:5px solid #dc3545;'><b>Form Belum Tersedia / Error:</b><br> " . $e->getMessage() . "</div>";
         }
     }
 
@@ -145,9 +153,6 @@ class Startup extends BaseController
         return view('edit-startup', $data);
     }
 
-    /**
-     * MENYIMPAN ALASAN REJECT DAN MEMBERIKAN NOTIFIKASI KE FOREMAN (Tanpa Email)
-     */
     public function requestReject($number)
     {
         if (!$this->session->has('empid')) {
@@ -164,7 +169,6 @@ class Startup extends BaseController
             return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'Alasan / catatan pengajuan reject wajib diisi.']);
         }
 
-        // Kirim note ke Model untuk disimpan di database dan mengubah status
         $this->StartupModel->markRejectRequested($number, $note);
 
         return $this->response->setJSON([
@@ -270,10 +274,6 @@ class Startup extends BaseController
         if(!$this->session->has('empid')){
             return redirect()->to(base_url()."login");
         }
-        $data = [
-            'title' => 'Create Startup',
-            'validation' => \Config\Services::validation()
-        ];
 
         $isEdit = !empty($this->request->getVar('number-edit'));
         $number = $isEdit ? $this->request->getVar('number-edit') : ($this->StartupModel->getLatestId()+1);
@@ -284,29 +284,14 @@ class Startup extends BaseController
             $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
         }
 
-        $nowHour = (int)date('H');
         $shiftVal = strtoupper(trim((string)$this->request->getVar('shift-txt')));
         if ($shiftVal === '3') $shiftVal = 'C';
         $inputDate = trim((string)$this->request->getVar('date'));
-        $yesterday = date('Y-m-d', strtotime('-1 day'));
 
-        if (!$isEdit && $nowHour >= 0 && $nowHour < 7) {
-            if ($shiftVal !== 'C') {
-                session()->setFlashdata('message', 'GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!');
-                return redirect()->to(base_url('input'));
-            }
-            if ($inputDate !== $yesterday) {
-                $inputDate = $yesterday;
-            }
-        }
-
+        // === LOGIKA ROLLBACK REALTIME ===
+        // Selalu gunakan jam aktual (H:i:s) sesuai tanggal input untuk seluruh shift
         $customCreatedAt = null;
-        // Jika Shift C, paksa tanggal menjadi H-1 dan waktu menjadi 23:20:00
-        if ($shiftVal === 'C') {
-            $customCreatedAt = $yesterday . ' 23:20:00';
-        } 
-        // Selain Shift C, gunakan tanggal input dengan waktu aktual
-        elseif (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
             $customCreatedAt = $inputDate . ' ' . date('H:i:s');
         }
 

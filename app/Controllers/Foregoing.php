@@ -343,23 +343,9 @@ class Foregoing extends BaseController
         $inputDate = trim((string)$this->request->getVar('date'));
         $yesterday = date('Y-m-d', strtotime('-1 day'));
 
-        if (!$isEdit && $nowHour >= 0 && $nowHour < 7) {
-            if ($shiftVal !== 'C') {
-                session()->setFlashdata('message', 'GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!');
-                return redirect()->to(base_url('input'));
-            }
-            if ($inputDate !== $yesterday) {
-                $inputDate = $yesterday;
-            }
-        }
 
         $customCreatedAt = null;
-        // Jika Shift C, paksa tanggal menjadi H-1 dan waktu menjadi 23:20:00
-        if ($shiftVal === 'C') {
-            $customCreatedAt = $yesterday . ' 23:20:00';
-        } 
-        // Selain Shift C, gunakan tanggal input dengan waktu aktual
-        elseif (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
             $customCreatedAt = $inputDate . ' ' . date('H:i:s');
         }
 

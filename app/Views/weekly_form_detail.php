@@ -87,11 +87,11 @@
                     <?php endif; ?>
                 <?php endif; ?>
 
-                <a href="<?= base_url('history/exportExcel?typeProcess=startup&dateStart='.$period_start.'&dateEnd='.$period_end.'&device='.urlencode($device).'&process='.urlencode($process).'&machno='.urlencode($machno)) ?>" 
+                <a href="<?= base_url('history/exportExcel?typeProcess=startup&dateStart='.$period_start.'&dateEnd='.$period_end.'&device='.urlencode($device).'&process='.urlencode($process).'&machno='.urlencode($machno).'&weekly_id='.$weekly_id) ?>" 
                    class="btn btn-outline-success btn-sm shadow-sm" target="_blank" title="Download Excel 7 Hari (Fit 1 Page A4 Landscape)">
                     <i class="fas fa-file-excel me-1"></i> Excel
                 </a>
-                <a href="<?= base_url('history/exportPDF?typeProcess=startup&dateStart='.$period_start.'&dateEnd='.$period_end.'&device='.urlencode($device).'&process='.urlencode($process).'&machno='.urlencode($machno)) ?>" 
+                <a href="<?= base_url('history/exportPDF?typeProcess=startup&dateStart='.$period_start.'&dateEnd='.$period_end.'&device='.urlencode($device).'&process='.urlencode($process).'&machno='.urlencode($machno).'&weekly_id='.$weekly_id) ?>" 
                    class="btn btn-outline-danger btn-sm shadow-sm" target="_blank" title="Download PDF 7 Hari">
                     <i class="fas fa-file-pdf me-1"></i> PDF
                 </a>

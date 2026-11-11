@@ -396,16 +396,6 @@ class Production extends BaseController
         $inputDate = trim((string)$req->getVar('date'));
         $yesterday = date('Y-m-d', strtotime('-1 day'));
 
-        if (empty($editNumber) && $nowHour >= 0 && $nowHour < 7) {
-            if ($shiftVal !== 'C') {
-                session()->setFlashdata('message', 'GAGAL: Pada pukul 00:00 - 06:59 WIB, Shift WAJIB dipilih Shift C (Malam)!');
-                return redirect()->to(base_url('input'));
-            }
-            if ($inputDate !== $yesterday) {
-                $inputDate = $yesterday;
-            }
-        }
-
         $customCreatedAt = null;
         if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
             $customCreatedAt = $inputDate . ' ' . date('H:i:s');
@@ -444,10 +434,7 @@ class Production extends BaseController
             ? $origRow1['name']
             : ($req->getVar('name-txt') ?: '');
 
-        // === TAMBAHKAN LOGIKA TIME IN STATIS SHIFT C DI SINI ===
-        // Jika Shift C, time in dipaksa H-1 jam 23:20. Selain itu, gunakan waktu aktual.
-        $timeInDateTime = ($startShift === 'C') ? $yesterday . ' 23:20:00' : $nowDateTime;
-        // =======================================================
+            $timeInDateTime = $nowDateTime;
 
         $common = [
             'number'       => $number,

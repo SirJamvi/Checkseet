@@ -1,5 +1,5 @@
 Folder PATH listing for volume www
-Volume serial number is 00000054 3C25:73BB
+Volume serial number is 000000A2 3C25:73BB
 \\192.168.132.22\WWW\CHECKSEET\APP
 |   Common.php
 |   index.html
@@ -95,6 +95,7 @@ Volume serial number is 00000054 3C25:73BB
 |   |       2026-10-13-042145_AddUnitColumnsToStartupDB2.php
 |   |       2026-10-19-154000_AddDeviceProcessApproversToWeeklyApproval.php
 |   |       2026-10-21-000001_AddEditLockAndForegoingApproval.php
+|   |       2026-11-04-105300_UpdateShiftValuesToAlphabet.php
 |   |       
 |   \---Seeds
 |           MachineListSeeder.php
@@ -127,6 +128,7 @@ Volume serial number is 00000054 3C25:73BB
 |       StartupModel.php
 |       StartupModel.php.bak
 |       WeeklyApprovalModel.php
+|       WeeklyDocumentApprovalModel.php
 |       
 +---ThirdParty
 \---Views
@@ -189,6 +191,7 @@ Volume serial number is 00000054 3C25:73BB
         |   footer.php
         |   header.php
         |   kop_surat.php
+        |   modal_confirm_weekly_approve.php
         |   nav.php
         |   navbar.php
         |   templ-home.php
