@@ -15,7 +15,7 @@ class StartupModel extends Model
         'par013','par014','par015','par016','par017','par018','par019','par020',
         'par021','par022','par023','par024','par025','par026','par027','par028',
         'par029','par030','par031','par032','par033','par034','par035','par036',
-        'par037','par038','par039','par040','par041','par042','par043','par044',
+        'par037','par038','par039','par040','par041','par042','par043','par044','par045','par046',
         'status','role','foreman','leader','supervisor','name', 'docno', 'revisi',
         'par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 
         'par021_unit', 'weekly_id', 'edit_status', 'unlocked_by', 'reject_reason', 'reject_by', 'reject_date',
@@ -42,6 +42,9 @@ class StartupModel extends Model
                 $db->query("ALTER TABLE `startup` 
                     ADD COLUMN `edit_status` TINYINT(1) NOT NULL DEFAULT 0 AFTER `revisi`,
                     ADD COLUMN `unlocked_by` VARCHAR(100) NULL DEFAULT NULL AFTER `edit_status`");
+            }
+            if (!$db->fieldExists('par045', 'startup')) {
+                $db->query("ALTER TABLE `startup` ADD COLUMN `par045` VARCHAR(30) NULL AFTER `par044`, ADD COLUMN `par046` VARCHAR(30) NULL AFTER `par045`");
             }
         } catch (\Throwable $e) {
             // Abaikan jika kolom sudah ada

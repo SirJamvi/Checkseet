@@ -315,7 +315,7 @@ class Startup extends BaseController
                 'created_at' => (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s'),
             ];
 
-            for ($p = 1; $p <= 44; $p++) {
+            for ($p = 1; $p <= 46; $p++) {
                 $key = 'par' . str_pad((string)$p, 3, '0', STR_PAD_LEFT);
                 $valSfx = $this->request->getVar($key . $sfx);
                 if ($blockNo === 1) {

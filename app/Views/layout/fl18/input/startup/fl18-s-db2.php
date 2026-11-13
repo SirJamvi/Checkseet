@@ -302,7 +302,14 @@ if (!function_exists('getValUnit')) {
         </tr>
 
         <tr>
-            <td colspan="4">Note</td>
+            <td colspan="4">Judgment Start Up *</td>
+            <td>
+                <input class="form-control text-center font-weight-bold" type="text" id="par025" name="par025" readonly placeholder="✔ / ✖" style="font-size: 1.25rem; font-weight: bold;" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par025'] ?? '').'"';} ?>>
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="4">Note #</td>
             <td >
               <input class="form-control" type="text" id="par023" name="par023" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par023'] ?? '').'"';} ?>>
             </td>
@@ -376,24 +383,121 @@ window.validateDynamicUnit = function(paramId) {
     window.combineData(paramId);
 };
 
-// Pastikan saat form di-submit, Item 7 terisi dan sesuai range satuan yang dipilih
+// Fungsi evaluasi otomatis Judgment Start Up untuk FL 1.8 Die Bonding 2
+function evaluateStartupJudgmentFl18() {
+    var judgInput = document.getElementById('par025');
+    if (!judgInput) return;
+
+    var isStandby = (document.getElementById('is-standby') && document.getElementById('is-standby').checked);
+    if (isStandby) {
+        judgInput.value = '-';
+        judgInput.style.backgroundColor = '#e9ecef';
+        judgInput.style.color = '#495057';
+        judgInput.style.borderColor = '#ced4da';
+        return;
+    }
+
+    var container = document.getElementById('fldb1a') || document;
+    var hasNg = false;
+    var allFilled = true;
+
+    // 1. Cek semua select dropdown item checklist
+    var selects = container.querySelectorAll('select:not([id="par025"]):not([id$="_unit"])');
+    selects.forEach(function(sel) {
+        if (sel.disabled) return;
+        var val = (sel.value || '').trim();
+        if (val === '') {
+            allFilled = false;
+        } else if (val === 'NG' || val.indexOf('NG') !== -1 || val.indexOf('✖') !== -1 || val === 'X') {
+            hasNg = true;
+        }
+    });
+
+    // 2. Cek semua input numerik wajib: Item 1, 2, 3, 4, 7 (par008_val), 9 (par010, par011, par012)
+    var numInputs = ['par001', 'par002', 'par003', 'par004', 'par008_val', 'par010', 'par011', 'par012'];
+    numInputs.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.disabled) return;
+        var val = el.value.trim();
+        if (val === '' || val === '-') {
+            allFilled = false;
+        } else if (el.dataset.hasError === "1" || el.style.backgroundColor === "red") {
+            hasNg = true;
+        }
+    });
+
+    // Cek penanda error di container form
+    var errInputs = container.querySelectorAll('input[data-has-error="1"], select[data-has-error="1"]');
+    if (errInputs.length > 0) {
+        hasNg = true;
+    }
+
+    // Tentukan nilai dan styling Judgment Start Up (ceklis ✔ / silang ✖)
+    if (hasNg) {
+        judgInput.value = '✖';
+        judgInput.style.backgroundColor = '#f8d7da';
+        judgInput.style.color = '#842029';
+        judgInput.style.borderColor = '#f5c2c7';
+    } else if (allFilled) {
+        judgInput.value = '✔';
+        judgInput.style.backgroundColor = '#d1e7dd';
+        judgInput.style.color = '#0f5132';
+        judgInput.style.borderColor = '#badbcc';
+    } else {
+        var curVal = (judgInput.value || '').trim();
+        if (curVal === 'OK' || curVal === '✔') {
+            judgInput.value = '✔';
+            judgInput.style.backgroundColor = '#d1e7dd';
+            judgInput.style.color = '#0f5132';
+            judgInput.style.borderColor = '#badbcc';
+        } else if (curVal === 'NG' || curVal === '✖') {
+            judgInput.value = '✖';
+            judgInput.style.backgroundColor = '#f8d7da';
+            judgInput.style.color = '#842029';
+            judgInput.style.borderColor = '#f5c2c7';
+        } else {
+            judgInput.value = '';
+            judgInput.style.backgroundColor = '';
+            judgInput.style.color = '';
+            judgInput.style.borderColor = '';
+        }
+    }
+}
+
+window.evaluateStartupJudgmentFl18 = evaluateStartupJudgmentFl18;
+
+// Pastikan saat form di-submit, Item 7 terisi dan Judgment dihitung akurat
 (function() {
     window.validateDynamicUnit('par008');
     window.combineData('par008');
 
     var valEl  = document.getElementById('par008_val');
     var unitEl = document.getElementById('par008_unit');
-    var formEl = valEl ? valEl.closest('form') : null;
+    var container = document.getElementById('fldb1a');
+    var formEl = valEl ? valEl.closest('form') : (container ? container.closest('form') : null);
+
+    if (container) {
+        container.addEventListener('input', function() {
+            setTimeout(evaluateStartupJudgmentFl18, 40);
+        });
+        container.addEventListener('change', function() {
+            setTimeout(evaluateStartupJudgmentFl18, 40);
+        });
+    }
+
+    setTimeout(evaluateStartupJudgmentFl18, 100);
 
     if (formEl) {
         formEl.addEventListener('submit', function(e) {
             var isStandbyActive = (document.getElementById('is-standby') && document.getElementById('is-standby').checked) || (valEl && valEl.value === '-');
             if (isStandbyActive) {
                 window.combineData('par008');
+                evaluateStartupJudgmentFl18();
                 return;
             }
             window.validateDynamicUnit('par008');
             window.combineData('par008');
+            evaluateStartupJudgmentFl18();
         }, true);
     }
 })();

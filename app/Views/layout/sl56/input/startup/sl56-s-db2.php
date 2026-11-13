@@ -450,7 +450,14 @@ if (!function_exists('getValUnit')) {
         </tr> 
 
         <tr>
-          <td colspan="4">Note</td>
+          <td colspan="4">Judgment Start Up *</td>
+          <td>
+            <input class="form-control text-center font-weight-bold" type="text" id="par031" name="par031" readonly placeholder="✔ / ✖" style="font-size: 1.25rem; font-weight: bold;" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par031'] ?? '').'"';} ?>>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="4">Note #</td>
           <td>
             <input class="form-control" type="text" placeholder="Tambahkan catatan jika ada" id="par030" name="par030" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par030'].'"';} ?>>
           </td>
@@ -458,6 +465,12 @@ if (!function_exists('getValUnit')) {
 
       </tbody>   
     </table>
+    <div class="note mt-3">
+        <h6><b>Catatan:</b></h6>
+        <p class="mb-1 small">@ : Tulis hasil pemeriksaan sesuai dengan angka yang ditunjukan pada masing-masing alat ukur.</p>
+        <p class="mb-1 small">* : Beri tanda V jika OK/Good dan X jika NG.</p>
+        <p class="mb-1 small"># : Isi bagian note apabila ada penggantian part atau kondisi abnormal.</p>
+    </div>
 </div>
 
 <script>
@@ -471,6 +484,145 @@ if (!function_exists('getValUnit')) {
       togglePairLock('par018', 'par019');
       togglePairLock('par020', 'par021');
       togglePairLock('par022', 'par023');
+    }
+
+    function evaluateStartupJudgmentSl56() {
+      var judgInput = document.getElementById('par031');
+      if (!judgInput) return;
+
+      var isStandby = (document.getElementById('is-standby') && document.getElementById('is-standby').checked);
+      if (isStandby) {
+        judgInput.value = '-';
+        judgInput.style.backgroundColor = '#e9ecef';
+        judgInput.style.color = '#495057';
+        judgInput.style.borderColor = '#ced4da';
+        return;
+      }
+
+      var container = document.getElementById('slvi') || document;
+      var hasNg = false;
+      var allFilled = true;
+
+      // 1. Check all selects
+      var selects = container.querySelectorAll('select:not([id="par031"]):not([id$="_unit"])');
+      selects.forEach(function(sel) {
+        if (sel.disabled) return;
+        var val = (sel.value || '').trim();
+        if (val === '') {
+          allFilled = false;
+        } else if (val === '✖' || val.indexOf('NG') !== -1 || val.indexOf('✖') !== -1 || val === 'X') {
+          hasNg = true;
+        }
+      });
+
+      // 2. Pairs of inputs
+      var pairs = [
+        ['par001', 'par002'],
+        ['par003', 'par004'],
+        ['par005', 'par006'],
+        ['par007', 'par008'],
+        ['par009', 'par010'],
+        ['par018_val', 'par019_val'],
+        ['par020_val', 'par021_val']
+      ];
+
+      pairs.forEach(function(pair) {
+        var elA = document.getElementById(pair[0]);
+        var elB = document.getElementById(pair[1]);
+        var filledA = elA && !elA.disabled && elA.value.trim() !== '' && elA.value.trim() !== '-';
+        var filledB = elB && !elB.disabled && elB.value.trim() !== '' && elB.value.trim() !== '-';
+        if (!filledA && !filledB) {
+          allFilled = false;
+        }
+        if (elA && !elA.disabled && filledA) {
+          if (elA.dataset.hasError === "1" || elA.style.backgroundColor === "red") hasNg = true;
+        }
+        if (elB && !elB.disabled && filledB) {
+          if (elB.dataset.hasError === "1" || elB.style.backgroundColor === "red") hasNg = true;
+        }
+      });
+
+      // Pair par022 (select) or par023_val (input)
+      var sel022 = document.getElementById('par022');
+      var inp023 = document.getElementById('par023_val');
+      var filled022 = sel022 && !sel022.disabled && sel022.value.trim() !== '';
+      var filled023 = inp023 && !inp023.disabled && inp023.value.trim() !== '' && inp023.value.trim() !== '-';
+      if (!filled022 && !filled023) {
+        allFilled = false;
+      }
+      if (inp023 && !inp023.disabled && filled023) {
+        if (inp023.dataset.hasError === "1" || inp023.style.backgroundColor === "red") hasNg = true;
+      }
+
+      // Single numeric inputs
+      var singleInputs = ['par015_val', 'par016_val', 'par029'];
+      singleInputs.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el || el.disabled) return;
+        var val = el.value.trim();
+        if (val === '' || val === '-') {
+          allFilled = false;
+        } else if (el.dataset.hasError === "1" || el.style.backgroundColor === "red") {
+          hasNg = true;
+        }
+      });
+
+      // Error markers
+      var errInputs = container.querySelectorAll('input[data-has-error="1"], select[data-has-error="1"]');
+      if (errInputs.length > 0) {
+        hasNg = true;
+      }
+
+      if (hasNg) {
+        judgInput.value = '✖';
+        judgInput.style.backgroundColor = '#f8d7da';
+        judgInput.style.color = '#842029';
+        judgInput.style.borderColor = '#f5c2c7';
+      } else if (allFilled) {
+        judgInput.value = '✔';
+        judgInput.style.backgroundColor = '#d1e7dd';
+        judgInput.style.color = '#0f5132';
+        judgInput.style.borderColor = '#badbcc';
+      } else {
+        var curVal = (judgInput.value || '').trim();
+        if (curVal === 'OK' || curVal === '✔') {
+          judgInput.value = '✔';
+          judgInput.style.backgroundColor = '#d1e7dd';
+          judgInput.style.color = '#0f5132';
+          judgInput.style.borderColor = '#badbcc';
+        } else if (curVal === 'NG' || curVal === '✖') {
+          judgInput.value = '✖';
+          judgInput.style.backgroundColor = '#f8d7da';
+          judgInput.style.color = '#842029';
+          judgInput.style.borderColor = '#f5c2c7';
+        } else {
+          judgInput.value = '';
+          judgInput.style.backgroundColor = '';
+          judgInput.style.color = '';
+          judgInput.style.borderColor = '';
+        }
+      }
+    }
+
+    window.evaluateStartupJudgmentSl56 = evaluateStartupJudgmentSl56;
+
+    var container = document.getElementById('slvi');
+    if (container) {
+      container.addEventListener('input', function() {
+        setTimeout(evaluateStartupJudgmentSl56, 40);
+      });
+      container.addEventListener('change', function() {
+        setTimeout(evaluateStartupJudgmentSl56, 40);
+      });
+    }
+
+    setTimeout(evaluateStartupJudgmentSl56, 100);
+
+    var formEl = container ? container.closest('form') : null;
+    if (formEl) {
+      formEl.addEventListener('submit', function() {
+        evaluateStartupJudgmentSl56();
+      }, true);
     }
   })();
 </script>

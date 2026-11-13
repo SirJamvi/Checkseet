@@ -2,8 +2,8 @@
 if (!function_exists('renderOkNg')) {
     function renderOkNg($val) {
         $valStr = strtoupper(trim((string)$val));
-        if ($valStr === 'OK') return '<strong>&#10004;</strong>';
-        if ($valStr === 'NG') return '<strong>&#10008;</strong>';
+        if ($valStr === 'OK' || $val === '✔' || $valStr === '✔' || $valStr === 'V') return '<strong>&#10004;</strong>';
+        if ($valStr === 'NG' || $val === '✖' || $valStr === '✖' || $valStr === 'X') return '<strong>&#10008;</strong>';
         return $val !== '' ? $val : '-';
     }
 }
@@ -323,6 +323,24 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         </tr> 
 
         <tr>
+            <td colspan="4">Judgment Start Up *</td>
+            <?php for($i = 0; $i < $lenData; $i++) { 
+                $judg = $alldata[$i]['par031'] ?? '';
+                if ($judg === '') {
+                    $chkPars = ['par011','par012','par013','par014','par017','par024','par025','par026','par027','par028'];
+                    $hasNg = false;
+                    foreach ($chkPars as $cp) {
+                        $v = strtoupper(trim((string)($alldata[$i][$cp] ?? '')));
+                        if ($v === 'NG' || $v === '✖' || $v === 'X') { $hasNg = true; break; }
+                    }
+                    $judg = $hasNg ? '✖' : '✔';
+                }
+            ?>
+                <td colspan="col"><?= renderOkNg($judg); ?></td>
+            <?php } ?>
+        </tr>
+
+        <tr>
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i++) { 
                 $opEmp = !empty($alldata[$i]['empid']) ? resolveStartupEmpId($alldata[$i]['empid']) : resolveStartupEmpId($alldata[$i]['name'] ?? '-');
@@ -339,7 +357,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         </tr>
 
         <tr>
-            <td colspan="4">Note</td>
+            <td colspan="4">Note #</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
                 <td colspan="col"><?= renderOkNg($alldata[$i]['par030'] ?? ''); ?></td>
             <?php } ?>
